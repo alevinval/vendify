@@ -1,8 +1,9 @@
+use std::fs;
+use std::path::Path;
+
 use anyhow::Result;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::fs;
-use std::path::Path;
 
 pub trait LoadableConfig<T>
 where

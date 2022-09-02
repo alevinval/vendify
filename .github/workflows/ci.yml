@@ -23,16 +23,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [stable, macos, windows]
+        build: [stable]
         include:
           - build: stable
             os: ubuntu-latest
-            rust: stable
-          # - build: macos
-          #   os: macos-latest
-          #   rust: stable
-          - build: windows
-            os: windows-latest
             rust: stable
     steps:
       - uses: actions/checkout@v3

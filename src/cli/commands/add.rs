@@ -1,9 +1,10 @@
+use log::error;
+use log::info;
+
 use crate::core::Dependency;
 use crate::core::LoadableConfig;
 use crate::core::VendorSpec;
 use crate::VENDOR_YML;
-use log::error;
-use log::info;
 
 pub fn run(
     url: &str,

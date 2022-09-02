@@ -1,12 +1,13 @@
-use super::commands;
-use super::commands::VendorCli;
-use super::commands::VendorCommand;
 use clap::Parser;
 use simplelog::ColorChoice;
 use simplelog::ConfigBuilder;
 use simplelog::LevelFilter;
 use simplelog::TermLogger;
 use simplelog::TerminalMode;
+
+use super::commands;
+use super::commands::VendorCli;
+use super::commands::VendorCommand;
 
 pub fn run() {
     let cli = VendorCli::parse();

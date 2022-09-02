@@ -1,12 +1,10 @@
 ---
 version: 0.1.0
+extensions:
+  - proto
+targets:
+  - pkg/proto
 deps:
   - url: "https://github.com/alevinval/ledger"
     refname: master
-    extensions:
-      - proto
-    targets:
-      - pkg/proto
-      - README.md
-    ignores: []
 updated_at: "2022-04-10T15:10:37.797308Z"

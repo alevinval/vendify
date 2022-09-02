@@ -1,17 +1,15 @@
-use super::Dependency;
-use super::LoadableConfig;
-use crate::VERSION;
-use chrono::DateTime;
-use chrono::Utc;
-pub use manager::VendorManager;
-use serde::Deserialize;
-use serde::Serialize;
 use std::fmt::Debug;
 
-mod manager;
-mod vendor;
+use chrono::DateTime;
+use chrono::Utc;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+use crate::core::Dependency;
+use crate::core::LoadableConfig;
+use crate::VERSION;
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VendorSpec {
     /// Version that was used to generate the spec
     pub version: String,
@@ -20,6 +18,18 @@ pub struct VendorSpec {
     #[serde(default = "default_vendor")]
     #[serde(skip_serializing_if = "is_default_vendor")]
     pub vendor: String,
+
+    #[serde(default = "Vec::new")]
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    pub extensions: Vec<String>,
+
+    #[serde(default = "Vec::new")]
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    pub targets: Vec<String>,
+
+    #[serde(default = "Vec::new")]
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    pub ignores: Vec<String>,
 
     /// List of dependencies
     pub deps: Vec<Dependency>,
@@ -34,6 +44,9 @@ impl VendorSpec {
         VendorSpec {
             version: VERSION.to_string(),
             vendor: default_vendor(),
+            extensions: Vec::new(),
+            targets: Vec::new(),
+            ignores: Vec::new(),
             deps: Vec::new(),
             updated_at: Utc::now(),
         }
@@ -41,7 +54,7 @@ impl VendorSpec {
 
     pub fn add(&mut self, dep: Dependency) {
         match self.find_dep(&dep) {
-            Some(existing) => existing.update_config(&dep),
+            Some(existing) => existing.update_from(&dep),
             None => self.deps.push(dep),
         }
         self.updated_at = Utc::now();
@@ -72,10 +85,13 @@ fn is_default_vendor(other: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::core::utils::tests::*;
-    use anyhow::Result;
+
     use std::io::Write;
+
+    use anyhow::Result;
+
+    use super::*;
+    use crate::core::utils::tests;
 
     #[test]
     fn test_new_default_instance() {

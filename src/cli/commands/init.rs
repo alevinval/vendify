@@ -1,10 +1,12 @@
-use crate::core::LoadableConfig;
-use crate::core::VendorSpec;
-use crate::VENDOR_YML;
+use std::path::Path;
+
 use log::error;
 use log::info;
 use log::warn;
-use std::path::Path;
+
+use crate::core::LoadableConfig;
+use crate::core::VendorSpec;
+use crate::VENDOR_YML;
 
 pub fn run() {
     info!("initializing vendor in current directory");

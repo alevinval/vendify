@@ -1,4 +1,6 @@
-imports_granularity = "Item"
-wrap_comments = true
 format_strings = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Item"
 reorder_impl_items = true
+reorder_imports = true
+wrap_comments = true
