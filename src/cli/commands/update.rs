@@ -1,4 +1,4 @@
-use crate::core::paths::RepositoryCachePathBuilder;
+use crate::core::paths::CachePathBuilder;
 use crate::core::LoadableConfig;
 use crate::core::VendorLock;
 use crate::core::VendorManager;
@@ -28,7 +28,7 @@ pub fn run() {
     //     fs::remove_dir_all(vendor_dir).expect("cannot delete vendor folder");
     // }
 
-    let cache = RepositoryCachePathBuilder::new();
+    let cache = CachePathBuilder::new();
     debug!("cache: {}", cache.get().display());
 
     let mut manager = VendorManager::new(&cache, &mut spec, &mut lock);

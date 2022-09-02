@@ -1,12 +1,13 @@
-pub use self::vendor_spec::VendorManager;
-pub use self::vendor_spec::VendorSpec;
+pub use self::spec::VendorSpec;
 pub use dependency::Dependency;
 pub use dependency::DependencyLock;
+pub use managers::VendorManager;
+pub use spec_lock::VendorLock;
 pub use utils::LoadableConfig;
-pub use vendor_lock::VendorLock;
 
 mod dependency;
+mod managers;
 pub mod paths;
+mod spec;
+mod spec_lock;
 pub(crate) mod utils;
-mod vendor_lock;
-mod vendor_spec;

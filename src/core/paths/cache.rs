@@ -6,18 +6,18 @@ use std::path::PathBuf;
 
 type RootBuilderFn = fn() -> PathBuf;
 
-pub struct RepositoryCachePathBuilder {
+pub struct CachePathBuilder {
     root: RootBuilderFn,
     cache: OnceCell<path::PathBuf>,
 }
 
-impl RepositoryCachePathBuilder {
+impl CachePathBuilder {
     pub fn new() -> Self {
         Self::new_in(env::temp_dir)
     }
 
     pub fn new_in(root_provider: RootBuilderFn) -> Self {
-        RepositoryCachePathBuilder {
+        CachePathBuilder {
             root: root_provider,
             cache: OnceCell::new(),
         }
@@ -32,7 +32,7 @@ impl RepositoryCachePathBuilder {
     }
 }
 
-impl AsRef<Path> for RepositoryCachePathBuilder {
+impl AsRef<Path> for CachePathBuilder {
     fn as_ref(&self) -> &Path {
         self.get()
     }
@@ -49,7 +49,7 @@ mod tests {
     fn test_get_path() {
         let provider = || Path::new("some").join("fake");
 
-        let sut = RepositoryCachePathBuilder::new_in(provider);
+        let sut = CachePathBuilder::new_in(provider);
         let actual = sut.get();
 
         assert_eq!(

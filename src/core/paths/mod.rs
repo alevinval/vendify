@@ -1,7 +1,8 @@
-pub use path_collector::PathCollector;
-pub use repository::RepositoryPathBuilder;
-pub use repository_cache::RepositoryCachePathBuilder;
+pub use cache::CachePathBuilder;
+pub use iterator::PathIterator;
+pub use iterator::WalkdirPathIterator;
+pub use repository::RepositoryPathFactory;
 
-mod path_collector;
+mod cache;
+mod iterator;
 mod repository;
-mod repository_cache;
