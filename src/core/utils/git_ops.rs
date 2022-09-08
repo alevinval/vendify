@@ -1,3 +1,4 @@
+use std::fs::create_dir_all;
 use std::fs::remove_dir_all;
 use std::path::Path;
 
@@ -36,7 +37,9 @@ impl GitOps {
         match Repository::open(repository_path) {
             Ok(_) => Ok(()),
             Err(_) => {
-                remove_dir_all(repository_path)?;
+                if let Ok(_) = remove_dir_all(repository_path) {
+                    create_dir_all(repository_path)?;
+                }
                 match self.clone(url, refname, repository_path) {
                     Ok(_) => Ok(()),
                     Err(err) => Err(format_err!(
