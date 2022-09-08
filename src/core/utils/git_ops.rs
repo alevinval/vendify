@@ -37,7 +37,7 @@ impl GitOps {
         match Repository::open(repository_path) {
             Ok(_) => Ok(()),
             Err(_) => {
-                if let Ok(_) = remove_dir_all(repository_path) {
+                if remove_dir_all(repository_path).is_ok() {
                     create_dir_all(repository_path)?;
                 }
                 match self.clone(url, refname, repository_path) {

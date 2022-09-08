@@ -13,7 +13,7 @@ use crate::core::Repository;
 use crate::core::VendorSpec;
 
 pub struct DependencyManager<'a> {
-    spec: &'a VendorSpec,
+    vendor_spec: &'a VendorSpec,
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
@@ -21,13 +21,13 @@ pub struct DependencyManager<'a> {
 
 impl<'a> DependencyManager<'a> {
     pub fn new(
-        spec: &'a VendorSpec,
+        vendor_spec: &'a VendorSpec,
         dependency: &'a Dependency,
         dependency_lock: Option<&'a DependencyLock>,
         repository: &'a Repository,
     ) -> Self {
         DependencyManager {
-            spec,
+            vendor_spec,
             dependency,
             dependency_lock,
             repository,
@@ -50,7 +50,7 @@ impl<'a> DependencyManager<'a> {
     /// lock file and generate a new lock with the updated reference.
     pub fn update<P: AsRef<Path>>(&self, to: P) -> Result<DependencyLock> {
         self.repository.ensure_repository(self.dependency)?;
-        let refname = &self.dependency.refname;
+        let refname = self.dependency.refname.as_str();
 
         info!("updating {}@{}", self.dependency.url, refname);
         self.repository.fetch(refname)?;
@@ -67,7 +67,7 @@ impl<'a> DependencyManager<'a> {
 
     fn copy_files<P: AsRef<Path>>(&self, dst_root: P) -> Result<(), anyhow::Error> {
         for src_path in self.repository.iter() {
-            let relative_path = src_path.strip_prefix(self.repository.path.as_path())?;
+            let relative_path = src_path.strip_prefix(&self.repository.path)?;
             if self.is_ignored(relative_path) {
                 warn!("\t- {} [IGNORED]", relative_path.display());
                 continue;
@@ -82,7 +82,7 @@ impl<'a> DependencyManager<'a> {
             }
 
             let dst_path = dst_root.as_ref().join(relative_path);
-            info!(
+            debug!(
                 "\t.../{} -> {}",
                 relative_path.display(),
                 dst_path.display()
@@ -109,7 +109,7 @@ impl<'a> DependencyManager<'a> {
 
     fn is_ignored(&self, path: &Path) -> bool {
         return chained_any(
-            &self.spec.ignores,
+            &self.vendor_spec.ignores,
             &self.dependency.ignores,
             &path_matcher(path),
         );
@@ -117,7 +117,7 @@ impl<'a> DependencyManager<'a> {
 
     fn is_target(&self, path: &Path) -> bool {
         return chained_any(
-            &self.spec.targets,
+            &self.vendor_spec.targets,
             &self.dependency.targets,
             &path_matcher(path),
         );
@@ -126,7 +126,7 @@ impl<'a> DependencyManager<'a> {
     fn is_extension(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension() {
             return chained_any(
-                &self.spec.extensions,
+                &self.vendor_spec.extensions,
                 &self.dependency.extensions,
                 &extension_matcher(ext),
             );
