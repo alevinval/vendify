@@ -14,7 +14,7 @@ use repository_path_factory::RepositoryPathFactory;
 use crate::core::Dependency;
 
 pub struct Repository {
-    pub path: PathBuf,
+    path: PathBuf,
     path_iterator: Box<dyn PathIterator>,
     git: GitOps,
 }
@@ -22,13 +22,17 @@ pub struct Repository {
 impl Repository {
     pub fn new<P: AsRef<Path>>(cache: P, dep: &Dependency) -> Self {
         let git = GitOps {};
-        let repo_path = RepositoryPathFactory::create(dep, cache);
-        let path_iterator = WalkdirPathIterator::new(&repo_path);
+        let path = RepositoryPathFactory::create(dep, cache);
+        let path_iterator = WalkdirPathIterator::new(&path);
         Repository {
-            path: repo_path,
+            path,
             path_iterator: Box::new(path_iterator),
             git,
         }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = PathBuf>> {

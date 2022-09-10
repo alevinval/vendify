@@ -1,22 +1,21 @@
-use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
 use log::debug;
 use log::info;
-use log::warn;
 
+use crate::core::utils::PathSelector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
 use crate::core::VendorSpec;
 
 pub struct DependencyManager<'a> {
-    vendor_spec: &'a VendorSpec,
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
+    path_selector: PathSelector<'a>,
 }
 
 impl<'a> DependencyManager<'a> {
@@ -27,10 +26,10 @@ impl<'a> DependencyManager<'a> {
         repository: &'a Repository,
     ) -> Self {
         DependencyManager {
-            vendor_spec,
             dependency,
             dependency_lock,
             repository,
+            path_selector: PathSelector::new(vendor_spec, dependency),
         }
     }
 
@@ -66,28 +65,18 @@ impl<'a> DependencyManager<'a> {
     }
 
     fn copy_files<P: AsRef<Path>>(&self, dst_root: P) -> Result<(), anyhow::Error> {
+        let dst_root = dst_root.as_ref();
         for src_path in self.repository.iter() {
-            let relative_path = src_path.strip_prefix(&self.repository.path)?;
-            if self.is_ignored(relative_path) {
-                warn!("\t- {} [IGNORED]", relative_path.display());
-                continue;
+            let relative_path = src_path.strip_prefix(self.repository.path())?;
+            if self.path_selector.select(relative_path) {
+                let dst_path = dst_root.join(relative_path);
+                debug!(
+                    "\t.../{} -> {}",
+                    relative_path.display(),
+                    dst_path.display()
+                );
+                copy_file(src_path, dst_path)?;
             }
-            if !self.is_target(relative_path) {
-                debug!("\t- {} [NOT TARGET]", relative_path.display());
-                continue;
-            }
-            if !self.is_extension(relative_path) {
-                debug!("\t- {} [IGNORED EXTENSION]", relative_path.display());
-                continue;
-            }
-
-            let dst_path = dst_root.as_ref().join(relative_path);
-            debug!(
-                "\t.../{} -> {}",
-                relative_path.display(),
-                dst_path.display()
-            );
-            copy_file(src_path, dst_path)?;
         }
         Ok(())
     }
@@ -106,45 +95,6 @@ impl<'a> DependencyManager<'a> {
             refname: refname.to_string(),
         })
     }
-
-    fn is_ignored(&self, path: &Path) -> bool {
-        return chained_any(
-            &self.vendor_spec.ignores,
-            &self.dependency.ignores,
-            &path_matcher(path),
-        );
-    }
-
-    fn is_target(&self, path: &Path) -> bool {
-        return chained_any(
-            &self.vendor_spec.targets,
-            &self.dependency.targets,
-            &path_matcher(path),
-        );
-    }
-
-    fn is_extension(&self, path: &Path) -> bool {
-        if let Some(ext) = path.extension() {
-            return chained_any(
-                &self.vendor_spec.extensions,
-                &self.dependency.extensions,
-                &extension_matcher(ext),
-            );
-        }
-        false
-    }
-}
-
-fn path_matcher(path: &Path) -> Box<dyn Fn(&String) -> bool + '_> {
-    Box::new(|base| path.starts_with(base))
-}
-
-fn extension_matcher(input: &OsStr) -> Box<dyn Fn(&String) -> bool + '_> {
-    Box::new(|ext| input.eq_ignore_ascii_case(ext))
-}
-
-fn chained_any(a: &[String], b: &[String], matcher: &dyn Fn(&String) -> bool) -> bool {
-    return a.iter().chain(b.iter()).any(matcher);
 }
 
 fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
