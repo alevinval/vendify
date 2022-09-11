@@ -15,9 +15,9 @@ use git2_credentials::CredentialHandler;
 use log::error;
 use log::info;
 
-pub struct GitOps {}
+pub struct Git {}
 
-impl GitOps {
+impl Git {
     pub fn get_current_refname(&self, repository_path: &Path) -> Result<Oid> {
         match Repository::open(repository_path) {
             Ok(repository) => {

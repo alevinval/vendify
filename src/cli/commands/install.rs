@@ -4,14 +4,14 @@ use log::info;
 
 use crate::core::CachePathFactory;
 use crate::core::LoadableConfig;
-use crate::core::VendorLock;
+use crate::core::Spec;
+use crate::core::SpecLock;
 use crate::core::VendorManager;
-use crate::core::VendorSpec;
 use crate::VENDOR_LOCK_YML;
 use crate::VENDOR_YML;
 
 pub fn run() {
-    let mut spec = match VendorSpec::load_from(VENDOR_YML) {
+    let mut spec = match Spec::load_from(VENDOR_YML) {
         Ok(value) => value,
         Err(err) => {
             error!("{}", err);
@@ -19,9 +19,9 @@ pub fn run() {
         }
     };
 
-    let mut lock = match VendorLock::load_from(VENDOR_LOCK_YML) {
+    let mut lock = match SpecLock::load_from(VENDOR_LOCK_YML) {
         Ok(value) => value,
-        Err(_) => VendorLock::new(),
+        Err(_) => SpecLock::new(),
     };
 
     let cache = CachePathFactory::create_default();

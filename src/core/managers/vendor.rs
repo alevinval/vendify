@@ -9,21 +9,17 @@ use super::dependency::DependencyManager;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
-use crate::core::VendorLock;
-use crate::core::VendorSpec;
+use crate::core::Spec;
+use crate::core::SpecLock;
 
 pub struct VendorManager<'a> {
     cache: &'a Path,
-    spec: &'a mut VendorSpec,
-    lock: &'a mut VendorLock,
+    spec: &'a mut Spec,
+    lock: &'a mut SpecLock,
 }
 
 impl<'a> VendorManager<'a> {
-    pub fn new<P: AsRef<Path>>(
-        cache: &'a P,
-        spec: &'a mut VendorSpec,
-        lock: &'a mut VendorLock,
-    ) -> Self {
+    pub fn new<P: AsRef<Path>>(cache: &'a P, spec: &'a mut Spec, lock: &'a mut SpecLock) -> Self {
         VendorManager {
             cache: cache.as_ref(),
             spec,
@@ -121,7 +117,7 @@ fn create_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
 mod tests {
 
     use super::*;
-    use crate::core::utils::tests;
+    use crate::core::tests;
 
     #[test]
     fn test_ensure_vendor_empty_root() {

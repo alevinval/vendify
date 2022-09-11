@@ -8,7 +8,7 @@ use super::LoadableConfig;
 use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VendorLock {
+pub struct SpecLock {
     /// Version that was used to generate the config
     pub version: String,
 
@@ -20,9 +20,9 @@ pub struct VendorLock {
     pub updated_at: DateTime<Utc>,
 }
 
-impl VendorLock {
+impl SpecLock {
     pub fn new() -> Self {
-        VendorLock {
+        SpecLock {
             version: VERSION.to_owned(),
             deps: Vec::new(),
             updated_at: Utc::now(),
@@ -52,7 +52,7 @@ impl VendorLock {
     }
 }
 
-impl LoadableConfig<VendorLock> for VendorLock {
+impl LoadableConfig<SpecLock> for SpecLock {
     fn lint(&mut self) {
         self.deps.sort_by(|a, b| a.url.cmp(&b.url));
         self.deps
@@ -68,11 +68,11 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::utils::tests;
+    use crate::core::tests;
 
     #[test]
     fn test_new_default_instance() {
-        let sut = VendorLock::new();
+        let sut = SpecLock::new();
 
         assert_eq!(
             VERSION, sut.version,
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_add_dependency() {
-        let mut sut = VendorLock::new();
+        let mut sut = SpecLock::new();
         let dep = DependencyLock {
             url: "some url".to_string(),
             refname: "some ref".to_string(),
@@ -102,11 +102,11 @@ mod tests {
             url: "some url".to_string(),
             refname: "some ref".to_string(),
         };
-        let mut sut = VendorLock::new();
+        let mut sut = SpecLock::new();
         sut.add(dep);
 
         sut.save_to(&tmp)?;
-        let actual = VendorLock::load_from(&tmp)?;
+        let actual = SpecLock::load_from(&tmp)?;
 
         assert_eq!(sut, actual);
 
@@ -119,7 +119,7 @@ mod tests {
         out.write(b"bf")?;
         out.flush()?;
 
-        let actual = VendorLock::load_from(out);
+        let actual = SpecLock::load_from(out);
         assert!(actual.is_err(), "there should be an error");
 
         Ok(())

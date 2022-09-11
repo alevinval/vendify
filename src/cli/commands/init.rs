@@ -5,7 +5,7 @@ use log::info;
 use log::warn;
 
 use crate::core::LoadableConfig;
-use crate::core::VendorSpec;
+use crate::core::Spec;
 use crate::VENDOR_YML;
 
 pub fn run() {
@@ -16,7 +16,7 @@ pub fn run() {
         return;
     }
 
-    let mut config = VendorSpec::new();
+    let mut config = Spec::new();
     if let Err(err) = config.save_to(VENDOR_YML) {
         error!("failed initializing: {}", err);
         return;

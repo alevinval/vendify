@@ -10,7 +10,7 @@ use crate::core::LoadableConfig;
 use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct VendorSpec {
+pub struct Spec {
     /// Version that was used to generate the spec
     pub version: String,
 
@@ -39,9 +39,9 @@ pub struct VendorSpec {
     pub updated_at: DateTime<Utc>,
 }
 
-impl VendorSpec {
+impl Spec {
     pub fn new() -> Self {
-        VendorSpec {
+        Spec {
             version: VERSION.to_string(),
             vendor: default_vendor(),
             extensions: Vec::new(),
@@ -67,7 +67,7 @@ impl VendorSpec {
     }
 }
 
-impl LoadableConfig<VendorSpec> for VendorSpec {
+impl LoadableConfig<Spec> for Spec {
     fn lint(&mut self) {
         self.deps.sort_by(|a, b| a.url.cmp(&b.url));
         self.deps
@@ -91,11 +91,11 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::utils::tests;
+    use crate::core::tests;
 
     #[test]
     fn test_new_default_instance() {
-        let sut = VendorSpec::new();
+        let sut = Spec::new();
 
         assert_eq!(
             VERSION, sut.version,
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_add_dependency() {
-        let mut sut = VendorSpec::new();
+        let mut sut = Spec::new();
         let dep = Dependency::new("some url", "some ref");
 
         sut.add(dep.clone());
@@ -119,11 +119,11 @@ mod tests {
     fn test_initialise_save_then_load() -> Result<()> {
         let tmp = tests::tempfile();
         let dep = Dependency::new("some url", "some ref");
-        let mut sut = VendorSpec::new();
+        let mut sut = Spec::new();
         sut.add(dep);
 
         sut.save_to(&tmp)?;
-        let actual = VendorSpec::load_from(&tmp)?;
+        let actual = Spec::load_from(&tmp)?;
 
         assert_eq!(sut, actual);
 
@@ -136,7 +136,7 @@ mod tests {
         out.write(b"bf")?;
         out.flush()?;
 
-        let actual = VendorSpec::load_from(out);
+        let actual = Spec::load_from(out);
         assert!(actual.is_err(), "there should be an error");
 
         Ok(())

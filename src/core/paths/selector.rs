@@ -4,15 +4,15 @@ use std::path::Path;
 use log::debug;
 
 use crate::core::Dependency;
-use crate::core::VendorSpec;
+use crate::core::Spec;
 
 pub struct PathSelector<'a> {
-    vendor_spec: &'a VendorSpec,
+    vendor_spec: &'a Spec,
     dependency: &'a Dependency,
 }
 
 impl<'a> PathSelector<'a> {
-    pub fn new(vendor_spec: &'a VendorSpec, dependency: &'a Dependency) -> Self {
+    pub fn new(vendor_spec: &'a Spec, dependency: &'a Dependency) -> Self {
         PathSelector {
             vendor_spec,
             dependency,
@@ -83,7 +83,7 @@ fn chained_any(a: &[String], b: &[String], f: MatcherFn) -> bool {
 mod tests {
     use super::PathSelector;
     use crate::core::Dependency;
-    use crate::core::VendorSpec;
+    use crate::core::Spec;
 
     macro_rules! svec {
         ($($elem:expr),+ $(,)?) => {{
@@ -102,7 +102,7 @@ mod tests {
         let ignored_path_by_dependency = "/c";
         let ignored_file_by_dependency = "/a/b/c/file-2.txt";
 
-        let mut vendor_spec = VendorSpec::new();
+        let mut vendor_spec = Spec::new();
         vendor_spec.ignores = svec![ignored_path_by_vendor, ignored_file_by_vendor];
 
         let mut dependency = Dependency::new("some-url", "some-refname");
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_selector_selects_targets() {
-        let mut vendor_spec = VendorSpec::new();
+        let mut vendor_spec = Spec::new();
         vendor_spec.targets = svec!["/vendor/path-1", "/vendor/path-2/file-1.txt"];
         vendor_spec.extensions = svec!["txt"];
 
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_selector_does_not_select_ignored_extensions() {
-        let mut vendor_spec = VendorSpec::new();
+        let mut vendor_spec = Spec::new();
         vendor_spec.targets = svec!["/a/path-1"];
         vendor_spec.extensions = svec!["txt"];
 

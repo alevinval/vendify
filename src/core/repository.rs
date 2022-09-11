@@ -1,27 +1,25 @@
-use anyhow::format_err;
-
-use super::utils::GitOps;
-use crate::core::utils::PathIterator;
-use crate::core::utils::WalkdirPathIterator;
-mod repository_path_factory;
 use std::path::Path;
 use std::path::PathBuf;
 
+use anyhow::format_err;
 use anyhow::Result;
 use git2::Oid;
-use repository_path_factory::RepositoryPathFactory;
 
+use super::paths::RepositoryPathFactory;
+use crate::core::paths::PathIterator;
+use crate::core::paths::WalkdirPathIterator;
 use crate::core::Dependency;
+use crate::core::Git;
 
 pub struct Repository {
     path: PathBuf,
     path_iterator: Box<dyn PathIterator>,
-    git: GitOps,
+    git: Git,
 }
 
 impl Repository {
     pub fn new<P: AsRef<Path>>(cache: P, dep: &Dependency) -> Self {
-        let git = GitOps {};
+        let git = Git {};
         let path = RepositoryPathFactory::create(dep, cache);
         let path_iterator = WalkdirPathIterator::new(&path);
         Repository {

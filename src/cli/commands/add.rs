@@ -3,7 +3,7 @@ use log::info;
 
 use crate::core::Dependency;
 use crate::core::LoadableConfig;
-use crate::core::VendorSpec;
+use crate::core::Spec;
 use crate::VENDOR_YML;
 
 pub fn run(
@@ -13,7 +13,7 @@ pub fn run(
     targets: Option<Vec<String>>,
     ignores: Option<Vec<String>>,
 ) {
-    let mut spec = match VendorSpec::load_from(VENDOR_YML) {
+    let mut spec = match Spec::load_from(VENDOR_YML) {
         Ok(config) => config,
         Err(err) => {
             error!("{}", err);

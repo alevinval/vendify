@@ -5,11 +5,11 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 
-use crate::core::utils::PathSelector;
+use crate::core::paths::PathSelector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
-use crate::core::VendorSpec;
+use crate::core::Spec;
 
 pub struct DependencyManager<'a> {
     dependency: &'a Dependency,
@@ -20,7 +20,7 @@ pub struct DependencyManager<'a> {
 
 impl<'a> DependencyManager<'a> {
     pub fn new(
-        vendor_spec: &'a VendorSpec,
+        vendor_spec: &'a Spec,
         dependency: &'a Dependency,
         dependency_lock: Option<&'a DependencyLock>,
         repository: &'a Repository,
@@ -109,7 +109,7 @@ fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
 mod tests {
 
     use super::*;
-    use crate::core::utils::tests;
+    use crate::core::tests;
 
     #[test]
     fn test_copy_file_when_dst_parent_does_not_exit() -> Result<()> {
