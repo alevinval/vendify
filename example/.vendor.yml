@@ -1,8 +1,8 @@
 version: 0.1.0
-extensions:
-- proto
 targets:
 - pkg/proto
+extensions:
+- proto
 deps:
 - url: https://github.com/alevinval/ledger
   refname: master

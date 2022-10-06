@@ -6,7 +6,6 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "3", features = ["derive"] }
 git2 = "0.14"
 git2_credentials = "0.8"

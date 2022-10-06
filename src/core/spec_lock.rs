@@ -1,5 +1,3 @@
-use chrono::DateTime;
-use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -14,10 +12,6 @@ pub struct SpecLock {
 
     /// List of locked dependencies
     pub deps: Vec<DependencyLock>,
-
-    /// Last time the configuration was updated
-    #[serde(default = "Utc::now")]
-    pub updated_at: DateTime<Utc>,
 }
 
 impl SpecLock {
@@ -25,7 +19,6 @@ impl SpecLock {
         SpecLock {
             version: VERSION.to_owned(),
             deps: Vec::new(),
-            updated_at: Utc::now(),
         }
     }
 
@@ -38,7 +31,6 @@ impl SpecLock {
                 self.deps.push(dep);
             }
         }
-        self.updated_at = Utc::now();
     }
 
     pub fn find_dep(&self, url: &str) -> Option<&DependencyLock> {

@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use chrono::DateTime;
-use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -25,10 +23,6 @@ pub struct Spec {
 
     /// List of dependencies
     pub deps: Vec<Dependency>,
-
-    /// Last time the configuration was updated
-    #[serde(default = "Utc::now")]
-    pub updated_at: DateTime<Utc>,
 }
 
 impl Spec {
@@ -38,7 +32,6 @@ impl Spec {
             vendor: default_vendor(),
             filters: Filters::new(),
             deps: vec![],
-            updated_at: Utc::now(),
         }
     }
 
@@ -47,7 +40,6 @@ impl Spec {
             Some(existing) => existing.update_from(&dep),
             None => self.deps.push(dep),
         }
-        self.updated_at = Utc::now();
     }
 
     fn find_dep(&mut self, dep: &Dependency) -> Option<&mut Dependency> {
