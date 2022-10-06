@@ -23,13 +23,13 @@ pub fn run(
 
     let mut dep = Dependency::new(url, refname);
     if let Some(extensions) = extensions {
-        dep.extensions = extensions;
+        dep.filters.add_extensions(&extensions);
     }
     if let Some(targets) = targets {
-        dep.targets = targets;
+        dep.filters.add_targets(&targets);
     }
     if let Some(ignores) = ignores {
-        dep.ignores = ignores;
+        dep.filters.add_ignores(&ignores);
     }
     spec.add(dep);
 

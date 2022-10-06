@@ -38,16 +38,16 @@ impl<'a> PathSelector<'a> {
 
     fn is_ignored(&self, path: &Path) -> bool {
         chained_any(
-            &self.vendor_spec.ignores,
-            &self.dependency.ignores,
+            &self.vendor_spec.filters.ignores,
+            &self.dependency.filters.ignores,
             path_matcher(path),
         )
     }
 
     fn is_target(&self, path: &Path) -> bool {
         chained_any(
-            &self.vendor_spec.targets,
-            &self.dependency.targets,
+            &self.vendor_spec.filters.targets,
+            &self.dependency.filters.targets,
             path_matcher(path),
         )
     }
@@ -55,8 +55,8 @@ impl<'a> PathSelector<'a> {
     fn is_extension(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension() {
             chained_any(
-                &self.vendor_spec.extensions,
-                &self.dependency.extensions,
+                &self.vendor_spec.filters.extensions,
+                &self.dependency.filters.extensions,
                 extension_matcher(ext),
             )
         } else {
@@ -85,6 +85,7 @@ mod tests {
     use crate::core::Dependency;
     use crate::core::Spec;
 
+    #[macro_export]
     macro_rules! svec {
         ($($elem:expr),+ $(,)?) => {{
             let v = vec![
@@ -103,10 +104,15 @@ mod tests {
         let ignored_file_by_dependency = "/a/b/c/file-2.txt";
 
         let mut vendor_spec = Spec::new();
-        vendor_spec.ignores = svec![ignored_path_by_vendor, ignored_file_by_vendor];
+        vendor_spec
+            .filters
+            .add_ignores(&svec![ignored_path_by_vendor, ignored_file_by_vendor]);
 
         let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency.ignores = svec![ignored_path_by_dependency, ignored_file_by_dependency];
+        dependency.filters.add_ignores(&svec![
+            ignored_path_by_dependency,
+            ignored_file_by_dependency,
+        ]);
 
         let sut = PathSelector::new(&vendor_spec, &dependency);
 
@@ -134,11 +140,15 @@ mod tests {
     #[test]
     fn test_selector_selects_targets() {
         let mut vendor_spec = Spec::new();
-        vendor_spec.targets = svec!["/vendor/path-1", "/vendor/path-2/file-1.txt"];
-        vendor_spec.extensions = svec!["txt"];
+        vendor_spec
+            .filters
+            .add_targets(&svec!["/vendor/path-1", "/vendor/path-2/file-1.txt",])
+            .add_extensions(&svec!["txt"]);
 
         let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency.targets = svec!["/dep/path-1", "/dep/path-2/file-1.txt"];
+        dependency
+            .filters
+            .add_targets(&vec!["/dep/path-1".into(), "/dep/path-2/file-1.txt".into()]);
 
         let sut = PathSelector::new(&vendor_spec, &dependency);
 
@@ -166,11 +176,13 @@ mod tests {
     #[test]
     fn test_selector_does_not_select_ignored_extensions() {
         let mut vendor_spec = Spec::new();
-        vendor_spec.targets = svec!["/a/path-1"];
-        vendor_spec.extensions = svec!["txt"];
+        vendor_spec
+            .filters
+            .add_extensions(&svec!["txt"])
+            .add_targets(&svec!["/a/path-1"]);
 
         let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency.extensions = svec!["proto"];
+        dependency.filters.add_extensions(&svec!["proto"]);
 
         let sut = PathSelector::new(&vendor_spec, &dependency);
 
