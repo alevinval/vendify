@@ -22,7 +22,7 @@ impl PathSelector {
     }
 
     fn is_target(&self, path: &Path) -> bool {
-        self.filters.targets.iter().any(path_matcher(path)) || self.filters.targets.len() == 0
+        self.filters.targets.iter().any(path_matcher(path)) || self.filters.targets.is_empty()
     }
 
     fn is_ignored(&self, path: &Path) -> bool {

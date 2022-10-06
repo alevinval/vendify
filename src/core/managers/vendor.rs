@@ -70,7 +70,7 @@ impl VendorManager {
         Ok(())
     }
 
-    fn update_lock(&self, result: Result<DependencyLock>) -> () {
+    fn update_lock(&self, result: Result<DependencyLock>) {
         match result {
             Ok(updated_dependency_lock) => {
                 self.lock.write().unwrap().add(updated_dependency_lock);
@@ -139,11 +139,12 @@ fn create_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
 mod tests {
 
     use super::*;
-    use crate::core::tests;
+    use crate::core::tests::test_util::tempdir;
+    use crate::core::tests::test_util::write_to;
 
     #[test]
     fn test_ensure_vendor_empty_root() {
-        let root = &tests::tempdir();
+        let root = tempdir();
         let vendor = root.path().join("vendor");
 
         match create_vendor_path(&vendor) {
@@ -161,7 +162,7 @@ mod tests {
     fn test_ensure_vendor_err_vendor_is_file() {
         let root = &tests::tempdir();
         let vendor = root.path().join("vendor");
-        tests::write_to(&vendor, "");
+        write_to(&vendor, "");
 
         match create_vendor_path(&vendor) {
             Ok(()) => {

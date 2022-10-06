@@ -60,7 +60,7 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::tests;
+    use crate::core::tests::test_util::tempfile;
 
     #[test]
     fn test_new_default_instance() {
@@ -89,7 +89,8 @@ mod tests {
 
     #[test]
     fn test_initialise_save_then_load() -> Result<()> {
-        let tmp = tests::tempfile();
+        let tmp = tempfile();
+
         let dep = DependencyLock {
             url: "some url".to_string(),
             refname: "some ref".to_string(),
@@ -107,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_cannot_load_invalid_file() -> Result<()> {
-        let mut out = tempfile::NamedTempFile::new()?;
+        let mut out = tempfile();
         out.write(b"bf")?;
         out.flush()?;
 

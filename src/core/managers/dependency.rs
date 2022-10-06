@@ -107,23 +107,25 @@ fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use crate::core::tests;
+    use crate::core::managers::dependency::copy_file;
+    use crate::core::tests::test_util::read_as_str;
+    use crate::core::tests::test_util::tempdir;
+    use crate::core::tests::test_util::write_to;
 
     #[test]
     fn test_copy_file_when_dst_parent_does_not_exit() -> Result<()> {
-        let from = tests::tempdir().path().join("src/path/file.txt");
+        let from = tempdir().path().join("src/path/file.txt");
         fs::create_dir_all(from.parent().unwrap())?;
-        tests::write_to(&from, "some-file");
+        write_to(&from, "some-file");
 
-        let to = tests::tempdir().path().join("dst/parent/file.txt");
+        let to = tempdir().path().join("dst/parent/file.txt");
 
         assert!(!to.exists());
         copy_file(&from, &to)?;
         assert!(to.exists());
 
-        let contents = tests::read_as_str(to);
+        let contents = read_as_str(to);
         assert_eq!("some-file", contents);
 
         Ok(())
@@ -133,7 +135,7 @@ mod tests {
     fn test_copy_file_when_dst_parent_exists() -> Result<()> {
         let from = tests::tempdir().path().join("src/path/file.txt");
         fs::create_dir_all(from.parent().unwrap())?;
-        tests::write_to(&from, "some-file");
+        write_to(&from, "some-file");
 
         let to = tests::tempdir().path().join("file.txt");
 
@@ -141,7 +143,7 @@ mod tests {
         copy_file(&from, &to)?;
         assert!(to.exists());
 
-        let contents = tests::read_as_str(to);
+        let contents = read_as_str(to);
         assert_eq!("some-file", contents);
 
         Ok(())

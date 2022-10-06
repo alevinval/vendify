@@ -73,7 +73,7 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::tests;
+    use crate::core::tests::test_util::tempfile;
 
     #[test]
     fn test_new_default_instance() {
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_initialise_save_then_load() -> Result<()> {
-        let tmp = tests::tempfile();
+        let tmp = tempfile();
         let dep = Dependency::new("some url", "some ref");
         let mut sut = Spec::new();
         sut.add(dep);
