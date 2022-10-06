@@ -5,6 +5,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 
+use super::filters::Filters;
 use crate::core::Dependency;
 use crate::core::LoadableConfig;
 use crate::VERSION;
@@ -19,17 +20,8 @@ pub struct Spec {
     #[serde(skip_serializing_if = "is_default_vendor")]
     pub vendor: String,
 
-    #[serde(default = "Vec::new")]
-    #[serde(skip_serializing_if = "<[_]>::is_empty")]
-    pub extensions: Vec<String>,
-
-    #[serde(default = "Vec::new")]
-    #[serde(skip_serializing_if = "<[_]>::is_empty")]
-    pub targets: Vec<String>,
-
-    #[serde(default = "Vec::new")]
-    #[serde(skip_serializing_if = "<[_]>::is_empty")]
-    pub ignores: Vec<String>,
+    #[serde(flatten)]
+    pub filters: Filters,
 
     /// List of dependencies
     pub deps: Vec<Dependency>,
@@ -44,10 +36,8 @@ impl Spec {
         Spec {
             version: VERSION.to_string(),
             vendor: default_vendor(),
-            extensions: Vec::new(),
-            targets: Vec::new(),
-            ignores: Vec::new(),
-            deps: Vec::new(),
+            filters: Filters::new(),
+            deps: vec![],
             updated_at: Utc::now(),
         }
     }

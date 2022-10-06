@@ -1,5 +1,6 @@
 pub use dependency::Dependency;
 pub use dependency::DependencyLock;
+pub use filters::Filters;
 pub use git::Git;
 pub use loadable_config::LoadableConfig;
 pub use managers::VendorManager;
@@ -9,6 +10,7 @@ pub use spec::Spec;
 pub use spec_lock::SpecLock;
 
 mod dependency;
+mod filters;
 mod git;
 mod loadable_config;
 mod managers;
