@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::RwLock;
+
 use log::debug;
 use log::error;
 use log::info;
@@ -11,17 +14,17 @@ use crate::VENDOR_LOCK_YML;
 use crate::VENDOR_YML;
 
 pub fn run() {
-    let mut spec = match Spec::load_from(VENDOR_YML) {
-        Ok(value) => value,
+    let spec = match Spec::load_from(VENDOR_YML) {
+        Ok(value) => Arc::new(RwLock::new(value)),
         Err(err) => {
             error!("{}", err);
             return;
         }
     };
 
-    let mut lock = match SpecLock::load_from(VENDOR_LOCK_YML) {
-        Ok(value) => value,
-        Err(_) => SpecLock::new(),
+    let lock = match SpecLock::load_from(VENDOR_LOCK_YML) {
+        Ok(value) => Arc::new(RwLock::new(value)),
+        Err(_) => Arc::new(RwLock::new(SpecLock::new())),
     };
 
     // let vendor_dir = Path::new("vendor");
@@ -32,18 +35,18 @@ pub fn run() {
     let cache = CachePathFactory::create_default();
     debug!("cache: {}", &cache.display());
 
-    let mut manager = VendorManager::new(&cache, &mut spec, &mut lock);
+    let manager = VendorManager::new(&cache, Arc::clone(&spec), Arc::clone(&lock));
     if let Err(err) = manager.update() {
         error!("update failed: {}", err);
         return;
     };
 
-    if let Err(err) = lock.save_to(VENDOR_LOCK_YML) {
+    if let Err(err) = lock.write().unwrap().save_to(VENDOR_LOCK_YML) {
         error!("update failed: {}", err);
         return;
     }
 
-    if let Err(err) = spec.save_to(VENDOR_YML) {
+    if let Err(err) = spec.write().unwrap().save_to(VENDOR_YML) {
         error!("update failed: {}", err);
         return;
     }

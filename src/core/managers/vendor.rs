@@ -1,5 +1,10 @@
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::thread;
+use std::thread::ScopedJoinHandle;
 
 use anyhow::format_err;
 use anyhow::Result;
@@ -12,71 +17,88 @@ use crate::core::Repository;
 use crate::core::Spec;
 use crate::core::SpecLock;
 
-pub struct VendorManager<'a> {
-    cache: &'a Path,
-    spec: &'a mut Spec,
-    lock: &'a mut SpecLock,
+type ActionFn = dyn Fn(&VendorManager, Dependency) -> Result<DependencyLock> + Sync + Send;
+
+pub struct VendorManager {
+    cache: PathBuf,
+    spec: Arc<RwLock<Spec>>,
+    lock: Arc<RwLock<SpecLock>>,
 }
 
-impl<'a> VendorManager<'a> {
-    pub fn new<P: AsRef<Path>>(cache: &'a P, spec: &'a mut Spec, lock: &'a mut SpecLock) -> Self {
+impl VendorManager {
+    pub fn new<P: AsRef<Path>>(
+        cache: P,
+        spec: Arc<RwLock<Spec>>,
+        lock: Arc<RwLock<SpecLock>>,
+    ) -> Self {
         VendorManager {
-            cache: cache.as_ref(),
+            cache: cache.as_ref().to_owned(),
             spec,
             lock,
         }
     }
 
-    pub fn install(&mut self) -> Result<()> {
-        self.execute(&Self::inner_install)
+    pub fn install(self) -> Result<()> {
+        self.execute(Arc::new(inner_install))
     }
 
-    pub fn update(&mut self) -> Result<()> {
-        self.execute(&Self::inner_update)
+    pub fn update(self) -> Result<()> {
+        self.execute(Arc::new(inner_update))
     }
 
-    fn inner_install(&mut self, dependency: &Dependency) -> Result<DependencyLock> {
-        let repository = Repository::new(self.cache, dependency);
-        let dependency_lock = self.lock.find_dep(&dependency.url);
-        let dependency_manager =
-            DependencyManager::new(self.spec, dependency, dependency_lock, &repository);
-        dependency_manager.install(&self.spec.vendor)
-    }
+    fn execute(self, action: Arc<ActionFn>) -> Result<()> {
+        recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
-    fn inner_update(&mut self, dependency: &Dependency) -> Result<DependencyLock> {
-        let repository = Repository::new(self.cache, dependency);
-        let dependency_manager = DependencyManager::new(self.spec, dependency, None, &repository);
-        dependency_manager.update(&self.spec.vendor)
-    }
+        let deps = self.spec.read().unwrap().deps.clone();
 
-    fn execute(
-        &mut self,
-        action: &dyn Fn(&mut Self, &Dependency) -> Result<DependencyLock>,
-    ) -> Result<()> {
-        recreate_vendor_path(&self.spec.vendor)?;
-        for dependency in self.spec.deps.clone().iter_mut() {
-            let result = action(self, dependency);
-            self.update_lock(dependency, result)?;
-        }
+        let woop = Arc::new(&self);
+
+        thread::scope(|s| {
+            let mut handles: Vec<ScopedJoinHandle<Result<DependencyLock>>> = vec![];
+
+            for dependency in deps.into_iter() {
+                handles.push(s.spawn(|| action(&woop, dependency)));
+            }
+
+            for handle in handles.into_iter() {
+                if let Ok(result) = handle.join() {
+                    self.update_lock(result)
+                }
+            }
+        });
+
         Ok(())
     }
 
-    fn update_lock(
-        &mut self,
-        dependency: &Dependency,
-        result: Result<DependencyLock>,
-    ) -> Result<()> {
+    fn update_lock(&self, result: Result<DependencyLock>) -> () {
         match result {
             Ok(updated_dependency_lock) => {
-                self.lock.add(updated_dependency_lock);
-                Ok(())
+                self.lock.write().unwrap().add(updated_dependency_lock);
             }
             Err(err) => {
-                error!("failed importing {}: {}", dependency.url, err);
-                Err(err)
+                error!("failed importing: {}", err);
             }
         }
     }
+}
+
+fn inner_install(manager: &VendorManager, dependency: Dependency) -> Result<DependencyLock> {
+    let repository = Repository::new(&manager.cache, &dependency);
+    let binding = manager.lock.read().unwrap();
+    let dependency_lock = binding.find_dep(&dependency.url);
+    let binding = manager.spec.read().unwrap();
+    let dependency_manager =
+        DependencyManager::new(&binding, &dependency, dependency_lock, &repository);
+
+    dependency_manager.install(&manager.spec.read().unwrap().vendor)
+}
+
+fn inner_update(manager: &VendorManager, dependency: Dependency) -> Result<DependencyLock> {
+    let repository = Repository::new(&manager.cache, &dependency);
+    let binding = manager.spec.read().unwrap();
+    let dependency_manager = DependencyManager::new(&binding, &dependency, None, &repository);
+
+    dependency_manager.update(&manager.spec.read().unwrap().vendor)
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
