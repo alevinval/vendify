@@ -1,67 +1,45 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-use log::debug;
-
 use crate::core::Dependency;
+use crate::core::Filters;
 use crate::core::Spec;
 
-pub struct PathSelector<'a> {
-    vendor_spec: &'a Spec,
-    dependency: &'a Dependency,
+pub struct PathSelector {
+    filters: Filters,
 }
 
-impl<'a> PathSelector<'a> {
-    pub fn new(vendor_spec: &'a Spec, dependency: &'a Dependency) -> Self {
+impl PathSelector {
+    pub fn new(spec: &Spec, dependency: &Dependency) -> Self {
         PathSelector {
-            vendor_spec,
-            dependency,
+            filters: spec.filters.clone().merge(&dependency.filters).to_owned(),
         }
     }
 
     pub fn select<P: AsRef<Path>>(&self, path: P) -> bool {
         let path = path.as_ref();
-        if self.is_ignored(path) {
-            debug!("\t- {} [IGNORED]", path.display());
-            return false;
-        }
-        if !self.is_target(path) {
-            debug!("\t- {} [NOT TARGET]", path.display());
-            return false;
-        }
-        if !self.is_extension(path) {
-            debug!("\t- {} [IGNORED EXTENSION]", path.display());
-            return false;
-        }
-        true
-    }
-
-    fn is_ignored(&self, path: &Path) -> bool {
-        chained_any(
-            &self.vendor_spec.filters.ignores,
-            &self.dependency.filters.ignores,
-            path_matcher(path),
-        )
+        !self.is_ignored(path) && self.is_target(path) && self.is_extension(path)
     }
 
     fn is_target(&self, path: &Path) -> bool {
-        chained_any(
-            &self.vendor_spec.filters.targets,
-            &self.dependency.filters.targets,
-            path_matcher(path),
-        )
+        self.filters.targets.iter().any(path_matcher(path)) || self.filters.targets.len() == 0
+    }
+
+    fn is_ignored(&self, path: &Path) -> bool {
+        self.filters.ignores.iter().any(path_matcher(path))
     }
 
     fn is_extension(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension() {
-            chained_any(
-                &self.vendor_spec.filters.extensions,
-                &self.dependency.filters.extensions,
-                extension_matcher(ext),
-            )
+            self.filters.extensions.iter().any(extension_matcher(ext))
+                || self.is_perfect_match(path)
         } else {
-            false
+            self.is_perfect_match(path)
         }
+    }
+
+    fn is_perfect_match(&self, path: &Path) -> bool {
+        self.filters.targets.iter().any(|t| path.eq(Path::new(t)))
     }
 }
 
@@ -75,14 +53,11 @@ fn extension_matcher(input: &OsStr) -> MatcherFn {
     Box::new(|ext| input.eq_ignore_ascii_case(ext))
 }
 
-fn chained_any(a: &[String], b: &[String], f: MatcherFn) -> bool {
-    a.iter().chain(b.iter()).any(f)
-}
-
 #[cfg(test)]
 mod tests {
     use super::PathSelector;
     use crate::core::Dependency;
+    use crate::core::Filters;
     use crate::core::Spec;
 
     #[macro_export]
@@ -95,109 +70,78 @@ mod tests {
         }};
     }
 
+    macro_rules! assert_selection {
+        ($cond:expr) => {{
+            assert_eq!(true, $cond, "should have selected path")
+        }};
+    }
+
+    macro_rules! assert_no_selection {
+        ($cond:expr) => {{
+            assert_eq!(false, $cond, "should not have selected path")
+        }};
+    }
+
     #[test]
-    fn test_selector_does_not_select_when_ignored() {
-        let ignored_path_by_vendor = "/b";
-        let ignored_file_by_vendor = "/a/b/c/file-1.txt";
+    fn test_selector_combines_filters() {
+        let spec = &mut Spec::new();
+        spec.filters
+            .add_targets(&svec!["a"])
+            .add_ignores(&svec!["b"])
+            .add_extensions(&svec!["c"]);
 
-        let ignored_path_by_dependency = "/c";
-        let ignored_file_by_dependency = "/a/b/c/file-2.txt";
+        let dep = &mut Dependency::new("some-url", "some-branch");
+        dep.filters
+            .add_targets(&svec!["1"])
+            .add_ignores(&svec!["2"])
+            .add_extensions(&svec!["3"]);
 
-        let mut vendor_spec = Spec::new();
-        vendor_spec
-            .filters
-            .add_ignores(&svec![ignored_path_by_vendor, ignored_file_by_vendor]);
+        let sut = &PathSelector::new(spec, dep);
 
-        let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency.filters.add_ignores(&svec![
-            ignored_path_by_dependency,
-            ignored_file_by_dependency,
-        ]);
-
-        let sut = PathSelector::new(&vendor_spec, &dependency);
-
-        assert!(
-            !sut.select("/b/a/file-1.txt"),
-            "should not be selected when path is ignored by vendor"
-        );
-
-        assert!(
-            !sut.select("/c/b/a/file-1.txt"),
-            "should not be selected when path is ignored by dependency"
-        );
-
-        assert!(
-            !sut.select(ignored_file_by_vendor),
-            "should not be selected when file is ignored by vendor"
-        );
-
-        assert!(
-            !sut.select(ignored_file_by_dependency),
-            "should not be selected when file is ignored by dependency"
+        assert_eq!(
+            spec.filters.clone().merge(&dep.filters).to_owned(),
+            sut.filters,
         );
     }
 
     #[test]
-    fn test_selector_selects_targets() {
-        let mut vendor_spec = Spec::new();
-        vendor_spec
-            .filters
-            .add_targets(&svec!["/vendor/path-1", "/vendor/path-2/file-1.txt",])
-            .add_extensions(&svec!["txt"]);
+    fn test_selector_with_targets() {
+        let filters = &mut Filters::new();
+        filters
+            .add_targets(&svec!["target/a", "readme.md"])
+            .add_ignores(&svec!["ignored/a", "target/a/ignored"])
+            .add_extensions(&svec!["proto"]);
 
-        let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency
-            .filters
-            .add_targets(&vec!["/dep/path-1".into(), "/dep/path-2/file-1.txt".into()]);
+        let sut = PathSelector {
+            filters: filters.to_owned(),
+        };
 
-        let sut = PathSelector::new(&vendor_spec, &dependency);
+        assert_selection!(sut.select("target/a/file.proto"));
+        assert_selection!(sut.select("readme.md"));
 
-        assert!(
-            sut.select("/vendor/path-1/file-1.txt"),
-            "should select vendor path"
-        );
-
-        assert!(
-            sut.select("/vendor/path-2/file-1.txt"),
-            "should select vendor file path"
-        );
-
-        assert!(
-            sut.select("/dep/path-1/file-1.txt"),
-            "should select dependency path"
-        );
-
-        assert!(
-            sut.select("/dep/path-2/file-1.txt"),
-            "should select dependency file path"
-        );
+        assert_no_selection!(sut.select("target/a/file.txt"));
+        assert_no_selection!(sut.select("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select("target/noextension"));
+        assert_no_selection!(sut.select("ignored/a/file.proto"));
     }
 
     #[test]
-    fn test_selector_does_not_select_ignored_extensions() {
-        let mut vendor_spec = Spec::new();
-        vendor_spec
-            .filters
-            .add_extensions(&svec!["txt"])
-            .add_targets(&svec!["/a/path-1"]);
+    fn test_selector_without_targets() {
+        let filters = &mut Filters::new();
+        filters
+            .add_ignores(&svec!["ignored/a", "target/a/ignored"])
+            .add_extensions(&svec!["proto"]);
 
-        let mut dependency = Dependency::new("some-url", "some-refname");
-        dependency.filters.add_extensions(&svec!["proto"]);
+        let sut = PathSelector {
+            filters: filters.to_owned(),
+        };
 
-        let sut = PathSelector::new(&vendor_spec, &dependency);
+        assert_selection!(sut.select("target/a/file.proto"));
 
-        assert!(
-            sut.select("/a/path-1/file-1.txt"),
-            "should select vendor extension"
-        );
-
-        assert!(
-            sut.select("/a/path-1/file-1.proto"),
-            "should select dependency extension"
-        );
-        assert!(
-            !sut.select("/a/path-1/file-1.md"),
-            "should not select unknown extension"
-        );
+        assert_no_selection!(sut.select("readme.md"));
+        assert_no_selection!(sut.select("target/a/file.txt"));
+        assert_no_selection!(sut.select("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select("target/noextension"));
+        assert_no_selection!(sut.select("ignored/a/file.proto"));
     }
 }

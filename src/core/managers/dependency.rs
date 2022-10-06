@@ -15,7 +15,7 @@ pub struct DependencyManager<'a> {
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
-    path_selector: PathSelector<'a>,
+    path_selector: PathSelector,
 }
 
 impl<'a> DependencyManager<'a> {
