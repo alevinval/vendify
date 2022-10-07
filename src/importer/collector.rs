@@ -80,9 +80,9 @@ impl CollectedPath {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::tests::test_util::read_as_str;
-    use crate::core::tests::test_util::tempdir;
-    use crate::core::tests::test_util::write_to;
+    use crate::test_utils::read_as_str;
+    use crate::test_utils::tempdir;
+    use crate::test_utils::write_to;
 
     #[test]
     fn test_collected_path_copy() -> Result<()> {

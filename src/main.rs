@@ -1,5 +1,3 @@
-use vendor::cli;
-
 fn main() {
-    cli::run();
+    vendify::cli::run();
 }

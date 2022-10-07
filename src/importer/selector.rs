@@ -1,9 +1,9 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-use crate::core::Dependency;
-use crate::core::Filters;
-use crate::core::Spec;
+use crate::dependency::Dependency;
+use crate::filters::Filters;
+use crate::spec::Spec;
 
 pub struct Selector {
     filters: Filters,
@@ -78,10 +78,7 @@ fn extension_matcher(input: &OsStr) -> MatcherFn {
 
 #[cfg(test)]
 mod tests {
-    use super::Selector;
-    use crate::core::Dependency;
-    use crate::core::Filters;
-    use crate::core::Spec;
+    use super::*;
     use crate::svec;
 
     macro_rules! assert_selection {

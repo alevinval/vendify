@@ -7,7 +7,7 @@ use simplelog::TerminalMode;
 
 use self::structs::VendorCli;
 use self::structs::VendorCommand;
-use crate::core::Controller;
+use crate::control::Controller;
 
 mod structs;
 

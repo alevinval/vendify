@@ -7,8 +7,8 @@ use anyhow::format_err;
 use anyhow::Result;
 use sha2::Digest;
 
-use super::Dependency;
-use super::Repository;
+use crate::dependency::Dependency;
+use crate::repository::Repository;
 
 const REPOS_DIR: &str = "repos";
 const LOCKS_DIR: &str = "locks";
@@ -20,7 +20,7 @@ pub struct CacheManager {
 impl CacheManager {
     pub fn new() -> Self {
         CacheManager {
-            cache_dir: ".vendor-rs".to_owned(),
+            cache_dir: ".vendify".to_owned(),
         }
     }
 
@@ -74,7 +74,7 @@ mod tests {
     use std::path::Path;
 
     use super::CacheManager;
-    use crate::core::Dependency;
+    use crate::dependency::Dependency;
 
     #[test]
     #[allow(unused_must_use)]

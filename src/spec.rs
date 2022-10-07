@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::filters::Filters;
-use crate::core::Dependency;
-use crate::core::LoadableConfig;
+use crate::dependency::Dependency;
+use crate::filters::Filters;
+use crate::loadable_config::LoadableConfig;
 use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -68,7 +68,7 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::tests::test_util::tempfile;
+    use crate::test_utils::tempfile;
 
     #[test]
     fn test_new_default_instance() {

@@ -5,8 +5,8 @@ use anyhow::format_err;
 use anyhow::Result;
 use git2::Oid;
 
-use crate::core::Dependency;
-use crate::core::Git;
+use crate::dependency::Dependency;
+use crate::git::Git;
 
 pub struct Repository {
     path: PathBuf,

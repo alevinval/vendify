@@ -6,10 +6,10 @@ use log::info;
 
 use self::collector::Collector;
 use self::selector::Selector;
-use crate::core::Dependency;
-use crate::core::DependencyLock;
-use crate::core::Repository;
-use crate::core::Spec;
+use crate::dependency::Dependency;
+use crate::dependency::DependencyLock;
+use crate::repository::Repository;
+use crate::spec::Spec;
 
 mod collector;
 mod selector;

@@ -9,12 +9,12 @@ use anyhow::format_err;
 use anyhow::Result;
 use log::error;
 
-use super::importer::Importer;
-use crate::core::cache::CacheManager;
-use crate::core::Dependency;
-use crate::core::DependencyLock;
-use crate::core::Spec;
-use crate::core::SpecLock;
+use crate::cache::CacheManager;
+use crate::dependency::Dependency;
+use crate::dependency::DependencyLock;
+use crate::importer::Importer;
+use crate::spec::Spec;
+use crate::spec_lock::SpecLock;
 
 type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<DependencyLock> + Sync + Send;
 
@@ -132,8 +132,8 @@ fn create_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
 mod tests {
 
     use super::*;
-    use crate::core::tests::test_util::tempdir;
-    use crate::core::tests::test_util::write_to;
+    use crate::test_utils::tempdir;
+    use crate::test_utils::write_to;
 
     #[test]
     fn test_ensure_vendor_empty_root() {

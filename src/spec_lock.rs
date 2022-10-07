@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::dependency::DependencyLock;
-use super::LoadableConfig;
+use crate::dependency::DependencyLock;
+use crate::loadable_config::LoadableConfig;
 use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ mod tests {
     use anyhow::Result;
 
     use super::*;
-    use crate::core::tests::test_util::tempfile;
+    use crate::test_utils::tempfile;
 
     #[test]
     fn test_new_default_instance() {

@@ -7,13 +7,13 @@ use log::info;
 use log::warn;
 
 use super::cache::CacheManager;
-use super::Dependency;
-use super::Installer;
-use super::SpecLock;
-use crate::core::LoadableConfig;
-use crate::core::Spec;
-use crate::VENDOR_LOCK_YML;
-use crate::VENDOR_YML;
+use super::dependency::Dependency;
+use super::installer::Installer;
+use super::loadable_config::LoadableConfig;
+use super::spec::Spec;
+use super::spec_lock::SpecLock;
+use super::VENDOR_LOCK_YML;
+use super::VENDOR_YML;
 
 pub struct Controller {
     cache: CacheManager,
