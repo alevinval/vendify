@@ -33,7 +33,7 @@ impl Collector {
             walkdir::WalkDir::new(self.src_root.as_path())
                 .into_iter()
                 .filter_entry(|entry| self.select(entry))
-                .filter_map(|entry| entry.ok())
+                .filter_map(Result::ok)
                 .filter(|entry| entry.path().is_file())
                 .map(|entry| self.to_collected_path(&entry)),
         )
@@ -70,7 +70,7 @@ impl Collector {
 impl CollectedPath {
     pub fn copy(&self) -> Result<()> {
         if let Some(parent) = self.dst.parent() {
-            fs::create_dir_all(parent)?
+            fs::create_dir_all(parent)?;
         };
         fs::copy(&self.src, &self.dst)?;
         Ok(())

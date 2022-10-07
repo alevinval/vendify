@@ -9,17 +9,17 @@ use anyhow::format_err;
 use anyhow::Result;
 use log::error;
 
-use crate::cache::CacheManager;
+use crate::cache::Manager;
 use crate::dependency::Dependency;
-use crate::dependency::DependencyLock;
+use crate::dependency::Lock;
 use crate::importer::Importer;
 use crate::spec::Spec;
 use crate::spec_lock::SpecLock;
 
-type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<DependencyLock> + Sync + Send;
+type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<Lock> + Sync + Send;
 
 pub struct Installer {
-    cache: CacheManager,
+    cache: Manager,
     spec: Arc<RwLock<Spec>>,
     spec_lock: Arc<RwLock<SpecLock>>,
 }
@@ -27,36 +27,36 @@ pub struct Installer {
 impl Installer {
     pub fn new(spec: Arc<RwLock<Spec>>, lock: Arc<RwLock<SpecLock>>) -> Self {
         Installer {
-            cache: CacheManager::new(),
+            cache: Manager::new(),
             spec,
             spec_lock: lock,
         }
     }
 
     pub fn install(self) -> Result<()> {
-        self.execute(Arc::new(inner_install))
+        self.execute(&inner_install)
     }
 
     pub fn update(self) -> Result<()> {
-        self.execute(Arc::new(inner_update))
+        self.execute(&inner_update)
     }
 
-    fn execute(self, action: Arc<ActionFn>) -> Result<()> {
+    fn execute(self, action: &ActionFn) -> Result<()> {
         self.cache.ensure()?;
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
         let deps = &self.spec.read().unwrap().deps;
 
         thread::scope(|s| {
-            let mut handles: Vec<ScopedJoinHandle<Result<DependencyLock>>> = vec![];
+            let mut handles: Vec<ScopedJoinHandle<Result<Lock>>> = vec![];
 
             for dep in deps.iter() {
                 handles.push(s.spawn(|| action(&self, dep)));
             }
 
-            for handle in handles.into_iter() {
+            for handle in handles {
                 if let Ok(result) = handle.join() {
-                    self.update_lock(result)
+                    self.update_lock(result);
                 }
             }
         });
@@ -64,7 +64,7 @@ impl Installer {
         Ok(())
     }
 
-    fn update_lock(&self, result: Result<DependencyLock>) {
+    fn update_lock(&self, result: Result<Lock>) {
         match result {
             Ok(updated_dependency_lock) => {
                 self.spec_lock.write().unwrap().add(updated_dependency_lock);
@@ -76,7 +76,7 @@ impl Installer {
     }
 }
 
-fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<DependencyLock> {
+fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<Lock> {
     let repository = installer.cache.get_repository(dependency)?;
     let spec = installer.spec.read().unwrap();
     let spec_lock = installer.spec_lock.read().unwrap();
@@ -86,7 +86,7 @@ fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<Depen
     importer.install()
 }
 
-fn inner_update(installer: &Installer, dependency: &Dependency) -> Result<DependencyLock> {
+fn inner_update(installer: &Installer, dependency: &Dependency) -> Result<Lock> {
     let repository = installer.cache.get_repository(dependency)?;
     let spec = installer.spec.read().unwrap();
     let importer = Importer::new(&spec, dependency, None, &repository);
@@ -103,7 +103,7 @@ fn delete_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
     let path = path.as_ref();
     if path.exists() {
         fs::remove_dir_all(path)
-            .map_err(|err| format_err!("cannot reset vendor folder: {}", err))?
+            .map_err(|err| format_err!("cannot reset vendor folder: {}", err))?;
     }
     Ok(())
 }
@@ -117,7 +117,7 @@ fn create_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
                 name = path.display(),
                 err = err
             )
-        })?
+        })?;
     }
     if !path.is_dir() {
         return Err(format_err!(
@@ -146,7 +146,7 @@ mod tests {
                 assert!(vendor.is_dir());
             }
             Err(err) => {
-                panic!("expected vendor to succeed, but failed with: {}", err);
+                panic!("expected vendor to succeed, but failed with: {err}");
             }
         }
     }
@@ -168,7 +168,7 @@ mod tests {
                         vendor.display()
                     ),
                     err.to_string()
-                )
+                );
             }
         }
     }

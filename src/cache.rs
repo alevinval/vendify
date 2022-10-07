@@ -13,13 +13,13 @@ use crate::repository::Repository;
 const REPOS_DIR: &str = "repos";
 const LOCKS_DIR: &str = "locks";
 
-pub struct CacheManager {
+pub struct Manager {
     cache_dir: String,
 }
 
-impl CacheManager {
+impl Manager {
     pub fn new() -> Self {
-        CacheManager {
+        Manager {
             cache_dir: ".vendify".to_owned(),
         }
     }
@@ -73,38 +73,38 @@ fn get_dependency_id(dep: &Dependency) -> String {
 mod tests {
     use std::path::Path;
 
-    use super::CacheManager;
+    use super::Manager;
     use crate::dependency::Dependency;
 
     #[test]
     #[allow(unused_must_use)]
     fn test_cache_manager_clean_and_ensure() {
-        let sut = CacheManager::new();
+        let sut = Manager::new();
 
-        let root = Path::new(".vendor-rs");
+        let root = Path::new(".vendify");
         let repos = root.join("repos");
         let locks = root.join("locks");
 
         sut.clean();
-        assert_eq!(false, root.exists());
+        assert!(!root.exists());
 
         sut.ensure();
-        assert_eq!(true, root.exists());
-        assert_eq!(true, repos.exists());
-        assert_eq!(true, locks.exists());
+        assert!(root.exists());
+        assert!(repos.exists());
+        assert!(locks.exists());
 
         sut.clean();
-        assert_eq!(false, root.exists());
+        assert!(!root.exists());
     }
 
     #[test]
     fn test_cache_manager_get_repository_path() {
         let dep = &Dependency::new("some-url", "some-branch");
 
-        let sut = CacheManager::new();
+        let sut = Manager::new();
 
         assert_eq!(
-            ".vendor-rs/repos/807460ee997e6fbe9d826f58a2af79c570f7bb5aa26f48d9b18dc320af428a05",
+            ".vendify/repos/807460ee997e6fbe9d826f58a2af79c570f7bb5aa26f48d9b18dc320af428a05",
             sut.get_repository_path(dep).as_os_str()
         );
     }
@@ -113,10 +113,10 @@ mod tests {
     fn test_cache_manager_get_repository_lock_path() {
         let dep = &Dependency::new("some-url", "some-branch");
 
-        let sut = CacheManager::new();
+        let sut = Manager::new();
 
         assert_eq!(
-            ".vendor-rs/locks/807460ee997e6fbe9d826f58a2af79c570f7bb5aa26f48d9b18dc320af428a05",
+            ".vendify/locks/807460ee997e6fbe9d826f58a2af79c570f7bb5aa26f48d9b18dc320af428a05",
             sut.get_repository_lock_path(dep).as_os_str()
         );
     }

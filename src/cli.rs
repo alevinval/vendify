@@ -16,18 +16,17 @@ pub fn run() {
 
     setup_logging(cli.debug);
 
-    let controller = Controller::new();
     match cli.command {
-        VendorCommand::Init {} => controller.init(),
+        VendorCommand::Init {} => Controller::init(),
         VendorCommand::Add {
             url,
             refname,
             extensions,
             targets,
             ignores,
-        } => controller.add(&url, &refname, extensions, targets, ignores),
-        VendorCommand::Install {} => controller.install(),
-        VendorCommand::Update {} => controller.update(),
+        } => Controller::add(&url, &refname, extensions, targets, ignores),
+        VendorCommand::Install {} => Controller::install(),
+        VendorCommand::Update {} => Controller::update(),
     };
 }
 

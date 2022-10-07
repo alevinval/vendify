@@ -6,7 +6,6 @@ use log::error;
 use log::info;
 use log::warn;
 
-use super::cache::CacheManager;
 use super::dependency::Dependency;
 use super::installer::Installer;
 use super::loadable_config::LoadableConfig;
@@ -15,16 +14,10 @@ use super::spec_lock::SpecLock;
 use super::VENDOR_LOCK_YML;
 use super::VENDOR_YML;
 
-pub struct Controller {
-    cache: CacheManager,
-}
+pub struct Controller {}
 
 impl Controller {
-    pub fn new() -> Self {
-        ControllerBuilder::new().build()
-    }
-
-    pub fn init(self) {
+    pub fn init() {
         info!("initializing vendor in current directory");
 
         if Path::new(VENDOR_YML).exists() {
@@ -42,7 +35,6 @@ impl Controller {
     }
 
     pub fn add(
-        self,
         url: &str,
         refname: &str,
         extensions: Option<Vec<String>>,
@@ -74,12 +66,12 @@ impl Controller {
                 info!("added dependency {}@{}", url, refname);
             }
             Err(err) => {
-                error!("add failed: {}", err)
+                error!("add failed: {}", err);
             }
         }
     }
 
-    pub fn install(self) {
+    pub fn install() {
         let spec = match Spec::load_from(VENDOR_YML) {
             Ok(value) => Arc::new(RwLock::new(value)),
             Err(err) => {
@@ -109,10 +101,10 @@ impl Controller {
             return;
         }
 
-        info!("install success ✅")
+        info!("install success ✅");
     }
 
-    pub fn update(self) {
+    pub fn update() {
         let spec = match Spec::load_from(VENDOR_YML) {
             Ok(value) => Arc::new(RwLock::new(value)),
             Err(err) => {
@@ -142,27 +134,6 @@ impl Controller {
             return;
         }
 
-        info!("update success ✅")
-    }
-}
-
-pub struct ControllerBuilder {
-    cache: CacheManager,
-}
-
-impl ControllerBuilder {
-    pub fn new() -> Self {
-        ControllerBuilder {
-            cache: CacheManager::new(),
-        }
-    }
-
-    pub fn cache(mut self, cache: CacheManager) -> Self {
-        self.cache = cache;
-        self
-    }
-
-    pub fn build(self) -> Controller {
-        Controller { cache: self.cache }
+        info!("update success ✅");
     }
 }

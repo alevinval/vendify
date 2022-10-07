@@ -12,7 +12,7 @@ pub struct Selector {
 impl Selector {
     pub fn new(spec: &Spec, dependency: &Dependency) -> Self {
         Selector {
-            filters: spec.filters.clone().merge(&dependency.filters).to_owned(),
+            filters: spec.filters.clone().merge(&dependency.filters).clone(),
         }
     }
 
@@ -28,7 +28,7 @@ impl Selector {
         }
         !self.is_ignored(dir)
             && (self.filters.targets.is_empty()
-                || self.inverse_has_prefix(
+                || inverse_has_prefix(
                     &self.filters.targets,
                     &dir.to_path_buf().into_os_string().into_string().unwrap(),
                 ))
@@ -54,18 +54,17 @@ impl Selector {
     fn is_perfect_match(&self, path: &Path) -> bool {
         self.filters.targets.iter().any(|t| path.eq(Path::new(t)))
     }
-
-    fn inverse_has_prefix(&self, paths: &[String], prefix: &String) -> bool {
-        paths.iter().any(|path| {
-            if prefix.len() > path.len() {
-                prefix.starts_with(path)
-            } else {
-                path.starts_with(prefix)
-            }
-        })
-    }
 }
 
+fn inverse_has_prefix(paths: &[String], prefix: &String) -> bool {
+    paths.iter().any(|path| {
+        if prefix.len() > path.len() {
+            prefix.starts_with(path)
+        } else {
+            path.starts_with(prefix)
+        }
+    })
+}
 type MatcherFn<'a> = Box<dyn Fn(&String) -> bool + 'a>;
 
 fn path_matcher(path: &Path) -> MatcherFn {
@@ -110,7 +109,7 @@ mod tests {
         let sut = &Selector::new(spec, dep);
 
         assert_eq!(
-            spec.filters.clone().merge(&dep.filters).to_owned(),
+            spec.filters.clone().merge(&dep.filters).clone(),
             sut.filters,
         );
     }
@@ -124,7 +123,7 @@ mod tests {
             .add_extensions(&svec!["proto"]);
 
         let sut = Selector {
-            filters: filters.to_owned(),
+            filters: filters.clone(),
         };
 
         assert_selection!(sut.select("target/a/file.proto"));
@@ -144,7 +143,7 @@ mod tests {
             .add_extensions(&svec!["proto"]);
 
         let sut = Selector {
-            filters: filters.to_owned(),
+            filters: filters.clone(),
         };
 
         assert_selection!(sut.select("target/a/file.proto"));

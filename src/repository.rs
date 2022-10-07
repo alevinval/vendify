@@ -27,7 +27,7 @@ impl Repository {
     }
 
     pub fn checkout(&self, refname: &str) -> Result<()> {
-        self.git.checkout(&self.path, refname)
+        Git::checkout(&self.path, refname)
     }
 
     pub fn fetch(&self, refname: &str) -> Result<()> {
@@ -35,11 +35,11 @@ impl Repository {
     }
 
     pub fn reset(&self, refname: &str) -> Result<()> {
-        self.git.reset(&self.path, refname)
+        Git::reset(&self.path, refname)
     }
 
     pub fn get_current_refname(&self) -> Result<Oid> {
-        self.git.get_current_refname(&self.path)
+        Git::get_current_refname(&self.path)
     }
 
     pub fn ensure(self, dep: &Dependency) -> Result<Self> {

@@ -18,7 +18,7 @@ use log::info;
 pub struct Git {}
 
 impl Git {
-    pub fn get_current_refname(&self, repository_path: &Path) -> Result<Oid> {
+    pub fn get_current_refname(repository_path: &Path) -> Result<Oid> {
         match Repository::open(repository_path) {
             Ok(repository) => {
                 let commit = repository
@@ -34,20 +34,19 @@ impl Git {
     }
 
     pub fn open_or_clone(&self, url: &str, refname: &str, repository_path: &Path) -> Result<()> {
-        match Repository::open(repository_path) {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                if remove_dir_all(repository_path).is_ok() {
-                    create_dir_all(repository_path)?;
-                }
-                match self.clone(url, refname, repository_path) {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(format_err!(
-                        "cannot load git repository from {path}: {err}",
-                        path = repository_path.display(),
-                        err = err,
-                    )),
-                }
+        if Repository::open(repository_path).is_ok() {
+            Ok(())
+        } else {
+            if remove_dir_all(repository_path).is_ok() {
+                create_dir_all(repository_path)?;
+            }
+            match self.clone(url, refname, repository_path) {
+                Ok(_) => Ok(()),
+                Err(err) => Err(format_err!(
+                    "cannot load git repository from {path}: {err}",
+                    path = repository_path.display(),
+                    err = err,
+                )),
             }
         }
     }
@@ -69,7 +68,7 @@ impl Git {
         }
     }
 
-    pub fn checkout(&self, repository_path: &Path, refname: &str) -> Result<()> {
+    pub fn checkout(repository_path: &Path, refname: &str) -> Result<()> {
         let repository = Repository::open(repository_path)?;
         let (object, reference) = repository.revparse_ext(refname)?;
         repository.checkout_tree(&object, None)?;
@@ -89,9 +88,9 @@ impl Git {
 
     pub fn fetch(&self, repository_path: &Path, refname: &str) -> Result<()> {
         let repository = Repository::open(repository_path)?;
-        let origin_refname = format!("origin/{}", refname);
+        let origin_refname = format!("origin/{refname}");
         if let Err(err) = repository.find_branch(&origin_refname, BranchType::Remote) {
-            return Err(format_err!("cannot find refname '{}': {}", refname, err));
+            return Err(format_err!("cannot find refname '{refname}': {err}"));
         }
         let mut fo = self.get_fetch_options()?;
         repository
@@ -100,19 +99,20 @@ impl Git {
         Ok(())
     }
 
-    pub fn reset(&self, repository_path: &Path, refname: &str) -> Result<()> {
+    pub fn reset(repository_path: &Path, refname: &str) -> Result<()> {
         let repository = Repository::open(repository_path)?;
-        let oid = repository.refname_to_id(&format!("refs/remotes/origin/{}", refname))?;
+        let oid = repository.refname_to_id(&format!("refs/remotes/origin/{refname}"))?;
         let object = repository.find_object(oid, None)?;
         repository.reset(&object, git2::ResetType::Hard, None)?;
         Ok(())
     }
 
-    fn get_fetch_options(&self) -> Result<FetchOptions> {
+    #[allow(clippy::unused_self)]
+    fn get_fetch_options(&self) -> Result<FetchOptions<'_>> {
         let config = match Config::open_default() {
             Ok(it) => it,
             Err(err) => {
-                error!("cannot open git configuration: {err}", err = err);
+                error!("cannot open git configuration: {err}");
                 return Err(err.into());
             }
         };
