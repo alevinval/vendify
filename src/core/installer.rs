@@ -9,24 +9,24 @@ use anyhow::format_err;
 use anyhow::Result;
 use log::error;
 
-use super::dependency::DependencyInstaller;
+use super::importer::Importer;
 use crate::core::cache::CacheManager;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Spec;
 use crate::core::SpecLock;
 
-type ActionFn = dyn Fn(&SpecInstaller, &Dependency) -> Result<DependencyLock> + Sync + Send;
+type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<DependencyLock> + Sync + Send;
 
-pub struct SpecInstaller {
+pub struct Installer {
     cache: CacheManager,
     spec: Arc<RwLock<Spec>>,
     spec_lock: Arc<RwLock<SpecLock>>,
 }
 
-impl SpecInstaller {
+impl Installer {
     pub fn new(spec: Arc<RwLock<Spec>>, lock: Arc<RwLock<SpecLock>>) -> Self {
-        SpecInstaller {
+        Installer {
             cache: CacheManager::new(),
             spec,
             spec_lock: lock,
@@ -76,25 +76,24 @@ impl SpecInstaller {
     }
 }
 
-fn inner_install(installer: &SpecInstaller, dependency: &Dependency) -> Result<DependencyLock> {
+fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<DependencyLock> {
     let repository = installer.cache.get_repository(dependency)?;
     let spec = installer.spec.read().unwrap();
     let spec_lock = installer.spec_lock.read().unwrap();
     let dependency_lock = spec_lock.find_dep(&dependency.url);
-    let dependency_manager =
-        DependencyInstaller::new(&spec, dependency, dependency_lock, &repository);
+    let importer = Importer::new(&spec, dependency, dependency_lock, &repository);
     let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    dependency_manager.install(vendor_path)
+    importer.install(vendor_path)
 }
 
-fn inner_update(installer: &SpecInstaller, dependency: &Dependency) -> Result<DependencyLock> {
+fn inner_update(installer: &Installer, dependency: &Dependency) -> Result<DependencyLock> {
     let repository = installer.cache.get_repository(dependency)?;
     let spec = installer.spec.read().unwrap();
-    let dependency_manager = DependencyInstaller::new(&spec, dependency, None, &repository);
+    let importer = Importer::new(&spec, dependency, None, &repository);
     let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    dependency_manager.update(vendor_path)
+    importer.update(vendor_path)
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {

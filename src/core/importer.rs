@@ -5,27 +5,29 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 
-use super::selector::Selector;
+use self::selector::Selector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
 use crate::core::Spec;
 
-pub struct DependencyInstaller<'a> {
+mod selector;
+
+pub struct Importer<'a> {
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
     selector: Selector,
 }
 
-impl<'a> DependencyInstaller<'a> {
+impl<'a> Importer<'a> {
     pub fn new(
         vendor_spec: &'a Spec,
         dependency: &'a Dependency,
         dependency_lock: Option<&'a DependencyLock>,
         repository: &'a Repository,
     ) -> Self {
-        DependencyInstaller {
+        Importer {
             dependency,
             dependency_lock,
             repository,
@@ -106,7 +108,6 @@ fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::installer::dependency::copy_file;
     use crate::core::tests::test_util::read_as_str;
     use crate::core::tests::test_util::tempdir;
     use crate::core::tests::test_util::write_to;

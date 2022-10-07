@@ -4,9 +4,9 @@ use std::sync::RwLock;
 use log::error;
 use log::info;
 
+use crate::core::Installer;
 use crate::core::LoadableConfig;
 use crate::core::Spec;
-use crate::core::SpecInstaller;
 use crate::core::SpecLock;
 use crate::VENDOR_LOCK_YML;
 use crate::VENDOR_YML;
@@ -25,7 +25,7 @@ pub fn run() {
         Err(_) => Arc::new(RwLock::new(SpecLock::new())),
     };
 
-    let manager = SpecInstaller::new(Arc::clone(&spec), Arc::clone(&lock));
+    let manager = Installer::new(Arc::clone(&spec), Arc::clone(&lock));
     if let Err(err) = manager.install() {
         error!("install failed: {}", err);
         return;
