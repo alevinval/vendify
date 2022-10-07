@@ -16,12 +16,12 @@ use crate::core::DependencyLock;
 use crate::core::Spec;
 use crate::core::SpecLock;
 
-type ActionFn = dyn Fn(&SpecInstaller, Dependency) -> Result<DependencyLock> + Sync + Send;
+type ActionFn = dyn Fn(&SpecInstaller, &Dependency) -> Result<DependencyLock> + Sync + Send;
 
 pub struct SpecInstaller {
     cache: CacheManager,
     spec: Arc<RwLock<Spec>>,
-    lock: Arc<RwLock<SpecLock>>,
+    spec_lock: Arc<RwLock<SpecLock>>,
 }
 
 impl SpecInstaller {
@@ -29,7 +29,7 @@ impl SpecInstaller {
         SpecInstaller {
             cache: CacheManager::new(),
             spec,
-            lock,
+            spec_lock: lock,
         }
     }
 
@@ -45,15 +45,13 @@ impl SpecInstaller {
         self.cache.ensure()?;
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
-        let deps = self.spec.read().unwrap().deps.clone();
-
-        let woop = Arc::new(&self);
+        let deps = &self.spec.read().unwrap().deps;
 
         thread::scope(|s| {
             let mut handles: Vec<ScopedJoinHandle<Result<DependencyLock>>> = vec![];
 
-            for dependency in deps.into_iter() {
-                handles.push(s.spawn(|| action(&woop, dependency)));
+            for dep in deps.iter() {
+                handles.push(s.spawn(|| action(&self, dep)));
             }
 
             for handle in handles.into_iter() {
@@ -69,7 +67,7 @@ impl SpecInstaller {
     fn update_lock(&self, result: Result<DependencyLock>) {
         match result {
             Ok(updated_dependency_lock) => {
-                self.lock.write().unwrap().add(updated_dependency_lock);
+                self.spec_lock.write().unwrap().add(updated_dependency_lock);
             }
             Err(err) => {
                 error!("failed importing: {}", err);
@@ -78,23 +76,25 @@ impl SpecInstaller {
     }
 }
 
-fn inner_install(installer: &SpecInstaller, dependency: Dependency) -> Result<DependencyLock> {
-    let repository = installer.cache.get_repository(&dependency)?;
-    let binding = installer.lock.read().unwrap();
-    let dependency_lock = binding.find_dep(&dependency.url);
-    let binding = installer.spec.read().unwrap();
+fn inner_install(installer: &SpecInstaller, dependency: &Dependency) -> Result<DependencyLock> {
+    let repository = installer.cache.get_repository(dependency)?;
+    let spec = installer.spec.read().unwrap();
+    let spec_lock = installer.spec_lock.read().unwrap();
+    let dependency_lock = spec_lock.find_dep(&dependency.url);
     let dependency_manager =
-        DependencyInstaller::new(&binding, &dependency, dependency_lock, &repository);
+        DependencyInstaller::new(&spec, dependency, dependency_lock, &repository);
+    let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    dependency_manager.install(&installer.spec.read().unwrap().vendor)
+    dependency_manager.install(vendor_path)
 }
 
-fn inner_update(installer: &SpecInstaller, dependency: Dependency) -> Result<DependencyLock> {
-    let repository = installer.cache.get_repository(&dependency)?;
-    let binding = installer.spec.read().unwrap();
-    let dependency_manager = DependencyInstaller::new(&binding, &dependency, None, &repository);
+fn inner_update(installer: &SpecInstaller, dependency: &Dependency) -> Result<DependencyLock> {
+    let repository = installer.cache.get_repository(dependency)?;
+    let spec = installer.spec.read().unwrap();
+    let dependency_manager = DependencyInstaller::new(&spec, dependency, None, &repository);
+    let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    dependency_manager.update(&installer.spec.read().unwrap().vendor)
+    dependency_manager.update(vendor_path)
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {
