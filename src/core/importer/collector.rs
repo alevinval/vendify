@@ -32,8 +32,9 @@ impl Collector {
         Box::new(
             walkdir::WalkDir::new(self.src_root.as_path())
                 .into_iter()
+                .filter_entry(|entry| self.select(entry))
                 .filter_map(|entry| entry.ok())
-                .filter(|entry| self.select(entry))
+                .filter(|entry| entry.path().is_file())
                 .map(|entry| self.to_collected_path(&entry)),
         )
     }
@@ -49,11 +50,11 @@ impl Collector {
     }
 
     fn select(&self, entry: &DirEntry) -> bool {
-        if entry.path().is_file() {
-            let rel = self.rel(entry);
-            self.selector.select(&rel)
+        let rel = self.rel(entry);
+        if entry.path().is_dir() {
+            self.selector.select_dir(&rel)
         } else {
-            false
+            self.selector.select(&rel)
         }
     }
 

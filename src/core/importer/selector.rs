@@ -21,6 +21,19 @@ impl Selector {
         !self.is_ignored(path) && self.is_target(path) && self.is_extension(path)
     }
 
+    pub fn select_dir<P: AsRef<Path>>(&self, dir: P) -> bool {
+        let dir = dir.as_ref();
+        if dir.as_os_str().is_empty() {
+            return true;
+        }
+        !self.is_ignored(dir)
+            && (self.filters.targets.is_empty()
+                || self.inverse_has_prefix(
+                    &self.filters.targets,
+                    &dir.to_path_buf().into_os_string().into_string().unwrap(),
+                ))
+    }
+
     fn is_target(&self, path: &Path) -> bool {
         self.filters.targets.iter().any(path_matcher(path)) || self.filters.targets.is_empty()
     }
@@ -40,6 +53,16 @@ impl Selector {
 
     fn is_perfect_match(&self, path: &Path) -> bool {
         self.filters.targets.iter().any(|t| path.eq(Path::new(t)))
+    }
+
+    fn inverse_has_prefix(&self, paths: &[String], prefix: &String) -> bool {
+        paths.iter().any(|path| {
+            if prefix.len() > path.len() {
+                prefix.starts_with(path)
+            } else {
+                path.starts_with(prefix)
+            }
+        })
     }
 }
 
