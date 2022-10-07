@@ -14,7 +14,6 @@ mod filters;
 mod git;
 mod importer;
 mod installer;
-mod iterator;
 mod loadable_config;
 mod repository;
 mod spec;

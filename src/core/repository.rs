@@ -5,34 +5,25 @@ use anyhow::format_err;
 use anyhow::Result;
 use git2::Oid;
 
-use super::iterator::PathIterator;
-use super::iterator::WalkdirPathIterator;
 use crate::core::Dependency;
 use crate::core::Git;
 
 pub struct Repository {
     path: PathBuf,
-    path_iterator: Box<dyn PathIterator>,
     git: Git,
 }
 
 impl Repository {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let git = Git {};
-        let path_iterator = WalkdirPathIterator::new(&path);
         Repository {
             path: path.as_ref().to_owned(),
-            path_iterator: Box::new(path_iterator),
             git,
         }
     }
 
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    pub fn iter(&self) -> Box<dyn Iterator<Item = PathBuf>> {
-        self.path_iterator.iter()
     }
 
     pub fn checkout(&self, refname: &str) -> Result<()> {

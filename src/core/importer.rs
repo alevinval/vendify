@@ -5,12 +5,14 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 
+use self::iterator::WalkdirPathIterator;
 use self::selector::Selector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
 use crate::core::Spec;
 
+mod iterator;
 mod selector;
 
 pub struct Importer<'a> {
@@ -41,6 +43,7 @@ impl<'a> Importer<'a> {
         let refname = self.get_locked_refname();
 
         info!("installing {}@{}", self.dependency.url, refname);
+        self.repository.fetch(refname)?;
         self.repository.checkout(refname)?;
         self.import(to)
     }
@@ -66,7 +69,8 @@ impl<'a> Importer<'a> {
 
     fn copy_files<P: AsRef<Path>>(&self, dst_root: P) -> Result<(), anyhow::Error> {
         let dst_root = dst_root.as_ref();
-        for src_path in self.repository.iter() {
+        let iterator = WalkdirPathIterator::new(&self.repository.path());
+        for src_path in iterator.iter() {
             let relative_path = src_path.strip_prefix(self.repository.path())?;
             if self.selector.select(relative_path) {
                 let dst_path = dst_root.join(relative_path);
