@@ -89,7 +89,7 @@ mod tests {
         sut.add(dep.clone());
 
         assert_eq!(1, sut.deps.len());
-        assert_eq!(dep, sut.deps.first().unwrap().to_owned());
+        assert_eq!(dep, sut.deps.first().unwrap().clone());
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_cannot_load_invalid_file() -> Result<()> {
         let mut out = tempfile();
-        out.write(b"bf")?;
+        out.write_all(b"bf")?;
         out.flush()?;
 
         let actual = Spec::load_from(out);

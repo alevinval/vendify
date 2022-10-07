@@ -75,7 +75,7 @@ mod tests {
         input.sort();
         input.dedup();
 
-        input.to_vec()
+        input.clone()
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod tests {
             get_expected(input),
             sut.targets,
             "targets should be sorted and unique",
-        )
+        );
     }
 
     #[test]
@@ -103,7 +103,7 @@ mod tests {
             get_expected(input),
             sut.ignores,
             "ignores should be sorted and unique",
-        )
+        );
     }
 
     #[test]
@@ -117,7 +117,7 @@ mod tests {
             get_expected(input),
             sut.extensions,
             "extensions should be sorted and unique",
-        )
+        );
     }
 
     #[test]
@@ -148,7 +148,7 @@ mod tests {
         sut.merge(other);
 
         let extended_input = &mut get_input();
-        extended_input.extend(extra.to_vec());
+        extended_input.extend(extra.clone());
 
         assert_eq!(get_expected(extended_input), sut.targets,);
         assert_eq!(get_expected(input), sut.ignores);

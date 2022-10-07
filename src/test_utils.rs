@@ -17,20 +17,20 @@ macro_rules! svec {
 pub fn tempdir() -> TempDir {
     match tempfile::tempdir() {
         Ok(dir) => dir,
-        Err(_) => panic!("cannot create temporary folder"),
+        Err(err) => panic!("cannot create temporary folder: {err}"),
     }
 }
 
 pub fn tempfile() -> NamedTempFile {
     match tempfile::NamedTempFile::new() {
         Ok(file) => file,
-        Err(_) => panic!("cannot create named temporary file"),
+        Err(err) => panic!("cannot create named temporary file: {err}"),
     }
 }
 
 pub fn write_to<P: AsRef<Path>>(dst: P, data: &str) {
     if let Err(err) = fs::write(&dst, data) {
-        panic!("cannot write to {}: {}", dst.as_ref().display(), err)
+        panic!("cannot write to {}: {err}", dst.as_ref().display())
     }
 }
 

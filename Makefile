@@ -1,8 +1,7 @@
 .PHONY: lint
 lint:
 	cargo +nightly fmt
-	cargo check
-	cargo clippy
+	cargo clippy --tests -- -Dclippy::all -Dclippy::pedantic
 
 .PHONY: test
 test:

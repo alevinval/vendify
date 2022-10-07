@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::dependency::DependencyLock;
+use crate::dependency::Lock;
 use crate::loadable_config::LoadableConfig;
 use crate::VERSION;
 
@@ -11,7 +11,7 @@ pub struct SpecLock {
     pub version: String,
 
     /// List of locked dependencies
-    pub deps: Vec<DependencyLock>,
+    pub deps: Vec<Lock>,
 }
 
 impl SpecLock {
@@ -22,7 +22,7 @@ impl SpecLock {
         }
     }
 
-    pub fn add(&mut self, dep: DependencyLock) {
+    pub fn add(&mut self, dep: Lock) {
         match self.find_dep_mut(&dep.url) {
             Some(found) => {
                 found.refname = dep.refname.clone();
@@ -33,11 +33,11 @@ impl SpecLock {
         }
     }
 
-    pub fn find_dep(&self, url: &str) -> Option<&DependencyLock> {
+    pub fn find_dep(&self, url: &str) -> Option<&Lock> {
         self.deps.iter().find(|l| l.url.eq_ignore_ascii_case(url))
     }
 
-    fn find_dep_mut(&mut self, url: &str) -> Option<&mut DependencyLock> {
+    fn find_dep_mut(&mut self, url: &str) -> Option<&mut Lock> {
         self.deps
             .iter_mut()
             .find(|l| l.url.eq_ignore_ascii_case(url))
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_add_dependency() {
         let mut sut = SpecLock::new();
-        let dep = DependencyLock {
+        let dep = Lock {
             url: "some url".to_string(),
             refname: "some ref".to_string(),
         };
@@ -84,14 +84,14 @@ mod tests {
         sut.add(dep.clone());
 
         assert_eq!(1, sut.deps.len());
-        assert_eq!(dep, sut.deps.first().unwrap().to_owned());
+        assert_eq!(dep, sut.deps.first().unwrap().clone());
     }
 
     #[test]
     fn test_initialise_save_then_load() -> Result<()> {
         let tmp = tempfile();
 
-        let dep = DependencyLock {
+        let dep = Lock {
             url: "some url".to_string(),
             refname: "some ref".to_string(),
         };
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_cannot_load_invalid_file() -> Result<()> {
         let mut out = tempfile();
-        out.write(b"bf")?;
+        out.write_all(b"bf")?;
         out.flush()?;
 
         let actual = SpecLock::load_from(out);

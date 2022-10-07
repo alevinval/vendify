@@ -15,7 +15,7 @@ pub struct Dependency {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DependencyLock {
+pub struct Lock {
     pub url: String,
     pub refname: String,
 }
@@ -48,16 +48,16 @@ mod tests {
         let mut original = Dependency::new("url-a", "refname-a");
         original
             .filters
-            .add_extensions(&vec!["a".into()])
-            .add_targets(&vec!["b".into()])
-            .add_ignores(&vec!["c".into()]);
+            .add_extensions(&["a".into()])
+            .add_targets(&["b".into()])
+            .add_ignores(&["c".into()]);
 
         let mut other = Dependency::new("url-b", "refname-b");
         other
             .filters
-            .add_extensions(&vec!["1".into()])
-            .add_targets(&vec!["2".into()])
-            .add_ignores(&vec!["3".into()]);
+            .add_extensions(&["1".into()])
+            .add_targets(&["2".into()])
+            .add_ignores(&["3".into()]);
 
         let mut actual = original.clone();
         actual.update_from(&other);
