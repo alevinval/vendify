@@ -1,15 +1,13 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use log::debug;
 use log::error;
 use log::info;
 
-use crate::core::CachePathFactory;
 use crate::core::LoadableConfig;
 use crate::core::Spec;
+use crate::core::SpecInstaller;
 use crate::core::SpecLock;
-use crate::core::VendorManager;
 use crate::VENDOR_LOCK_YML;
 use crate::VENDOR_YML;
 
@@ -27,15 +25,7 @@ pub fn run() {
         Err(_) => Arc::new(RwLock::new(SpecLock::new())),
     };
 
-    // let vendor_dir = Path::new("vendor");
-    // if vendor_dir.exists() {
-    //     fs::remove_dir_all(vendor_dir).expect("cannot delete vendor folder");
-    // }
-
-    let cache = CachePathFactory::create_default();
-    debug!("cache: {}", &cache.display());
-
-    let manager = VendorManager::new(&cache, Arc::clone(&spec), Arc::clone(&lock));
+    let manager = SpecInstaller::new(Arc::clone(&spec), Arc::clone(&lock));
     if let Err(err) = manager.update() {
         error!("update failed: {}", err);
         return;

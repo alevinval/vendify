@@ -5,38 +5,37 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 
-use crate::core::paths::PathSelector;
+use super::selector::Selector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
 use crate::core::Spec;
 
-pub struct DependencyManager<'a> {
+pub struct DependencyInstaller<'a> {
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
-    path_selector: PathSelector,
+    selector: Selector,
 }
 
-impl<'a> DependencyManager<'a> {
+impl<'a> DependencyInstaller<'a> {
     pub fn new(
         vendor_spec: &'a Spec,
         dependency: &'a Dependency,
         dependency_lock: Option<&'a DependencyLock>,
         repository: &'a Repository,
     ) -> Self {
-        DependencyManager {
+        DependencyInstaller {
             dependency,
             dependency_lock,
             repository,
-            path_selector: PathSelector::new(vendor_spec, dependency),
+            selector: Selector::new(vendor_spec, dependency),
         }
     }
 
     /// Install copies the files of the dependency into the vendor folder.
     /// It respects the dependency lock, when passed.
     pub fn install<P: AsRef<Path>>(&self, to: P) -> Result<DependencyLock> {
-        self.repository.ensure_repository(self.dependency)?;
         let refname = self.get_locked_refname();
 
         info!("installing {}@{}", self.dependency.url, refname);
@@ -48,7 +47,6 @@ impl<'a> DependencyManager<'a> {
     /// reference. Then it installs the dependency. This will ignore the
     /// lock file and generate a new lock with the updated reference.
     pub fn update<P: AsRef<Path>>(&self, to: P) -> Result<DependencyLock> {
-        self.repository.ensure_repository(self.dependency)?;
         let refname = self.dependency.refname.as_str();
 
         info!("updating {}@{}", self.dependency.url, refname);
@@ -68,7 +66,7 @@ impl<'a> DependencyManager<'a> {
         let dst_root = dst_root.as_ref();
         for src_path in self.repository.iter() {
             let relative_path = src_path.strip_prefix(self.repository.path())?;
-            if self.path_selector.select(relative_path) {
+            if self.selector.select(relative_path) {
                 let dst_path = dst_root.join(relative_path);
                 debug!(
                     "\t.../{} -> {}",
@@ -108,7 +106,7 @@ fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::managers::dependency::copy_file;
+    use crate::core::installer::dependency::copy_file;
     use crate::core::tests::test_util::read_as_str;
     use crate::core::tests::test_util::tempdir;
     use crate::core::tests::test_util::write_to;

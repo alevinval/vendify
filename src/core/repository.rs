@@ -5,9 +5,8 @@ use anyhow::format_err;
 use anyhow::Result;
 use git2::Oid;
 
-use super::paths::RepositoryPathFactory;
-use crate::core::paths::PathIterator;
-use crate::core::paths::WalkdirPathIterator;
+use super::iterator::PathIterator;
+use super::iterator::WalkdirPathIterator;
 use crate::core::Dependency;
 use crate::core::Git;
 
@@ -18,12 +17,11 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn new<P: AsRef<Path>>(cache: P, dep: &Dependency) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let git = Git {};
-        let path = RepositoryPathFactory::create(dep, cache);
         let path_iterator = WalkdirPathIterator::new(&path);
         Repository {
-            path,
+            path: path.as_ref().to_owned(),
             path_iterator: Box::new(path_iterator),
             git,
         }
@@ -53,11 +51,11 @@ impl Repository {
         self.git.get_current_refname(&self.path)
     }
 
-    pub fn ensure_repository(&self, dep: &Dependency) -> Result<()> {
+    pub fn ensure(self, dep: &Dependency) -> Result<Self> {
         let result = self.git.open_or_clone(&dep.url, &dep.refname, &self.path);
 
         match result {
-            Ok(_) => Ok(()),
+            Ok(_) => Ok(self),
             Err(err) => Err(format_err!("cannot open repository: {}", err)),
         }
     }

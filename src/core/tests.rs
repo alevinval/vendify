@@ -6,6 +6,16 @@ pub mod test_util {
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
 
+    #[macro_export]
+    macro_rules! svec {
+        ($($elem:expr),+ $(,)?) => {{
+            let v = vec![
+                $( String::from($elem), )*
+            ];
+            v
+        }};
+    }
+
     pub fn tempdir() -> TempDir {
         match tempfile::tempdir() {
             Ok(dir) => dir,

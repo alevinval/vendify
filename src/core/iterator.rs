@@ -24,8 +24,8 @@ impl PathIterator for WalkdirPathIterator {
             walkdir::WalkDir::new(self.root.as_path())
                 .into_iter()
                 .filter_map(|entry| entry.ok())
-                .map(|entry| entry.into_path())
-                .filter(|path| path.is_file()),
+                .filter(|e| e.path().is_file())
+                .map(|e| e.into_path()),
         )
     }
 }

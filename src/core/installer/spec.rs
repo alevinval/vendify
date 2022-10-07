@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
@@ -10,29 +9,25 @@ use anyhow::format_err;
 use anyhow::Result;
 use log::error;
 
-use super::dependency::DependencyManager;
+use super::dependency::DependencyInstaller;
+use crate::core::cache::CacheManager;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
-use crate::core::Repository;
 use crate::core::Spec;
 use crate::core::SpecLock;
 
-type ActionFn = dyn Fn(&VendorManager, Dependency) -> Result<DependencyLock> + Sync + Send;
+type ActionFn = dyn Fn(&SpecInstaller, Dependency) -> Result<DependencyLock> + Sync + Send;
 
-pub struct VendorManager {
-    cache: PathBuf,
+pub struct SpecInstaller {
+    cache: CacheManager,
     spec: Arc<RwLock<Spec>>,
     lock: Arc<RwLock<SpecLock>>,
 }
 
-impl VendorManager {
-    pub fn new<P: AsRef<Path>>(
-        cache: P,
-        spec: Arc<RwLock<Spec>>,
-        lock: Arc<RwLock<SpecLock>>,
-    ) -> Self {
-        VendorManager {
-            cache: cache.as_ref().to_owned(),
+impl SpecInstaller {
+    pub fn new(spec: Arc<RwLock<Spec>>, lock: Arc<RwLock<SpecLock>>) -> Self {
+        SpecInstaller {
+            cache: CacheManager::new(),
             spec,
             lock,
         }
@@ -47,6 +42,7 @@ impl VendorManager {
     }
 
     fn execute(self, action: Arc<ActionFn>) -> Result<()> {
+        self.cache.ensure()?;
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
         let deps = self.spec.read().unwrap().deps.clone();
@@ -82,23 +78,23 @@ impl VendorManager {
     }
 }
 
-fn inner_install(manager: &VendorManager, dependency: Dependency) -> Result<DependencyLock> {
-    let repository = Repository::new(&manager.cache, &dependency);
-    let binding = manager.lock.read().unwrap();
+fn inner_install(installer: &SpecInstaller, dependency: Dependency) -> Result<DependencyLock> {
+    let repository = installer.cache.get_repository(&dependency)?;
+    let binding = installer.lock.read().unwrap();
     let dependency_lock = binding.find_dep(&dependency.url);
-    let binding = manager.spec.read().unwrap();
+    let binding = installer.spec.read().unwrap();
     let dependency_manager =
-        DependencyManager::new(&binding, &dependency, dependency_lock, &repository);
+        DependencyInstaller::new(&binding, &dependency, dependency_lock, &repository);
 
-    dependency_manager.install(&manager.spec.read().unwrap().vendor)
+    dependency_manager.install(&installer.spec.read().unwrap().vendor)
 }
 
-fn inner_update(manager: &VendorManager, dependency: Dependency) -> Result<DependencyLock> {
-    let repository = Repository::new(&manager.cache, &dependency);
-    let binding = manager.spec.read().unwrap();
-    let dependency_manager = DependencyManager::new(&binding, &dependency, None, &repository);
+fn inner_update(installer: &SpecInstaller, dependency: Dependency) -> Result<DependencyLock> {
+    let repository = installer.cache.get_repository(&dependency)?;
+    let binding = installer.spec.read().unwrap();
+    let dependency_manager = DependencyInstaller::new(&binding, &dependency, None, &repository);
 
-    dependency_manager.update(&manager.spec.read().unwrap().vendor)
+    dependency_manager.update(&installer.spec.read().unwrap().vendor)
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {

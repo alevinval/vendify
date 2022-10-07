@@ -5,13 +5,13 @@ use crate::core::Dependency;
 use crate::core::Filters;
 use crate::core::Spec;
 
-pub struct PathSelector {
+pub struct Selector {
     filters: Filters,
 }
 
-impl PathSelector {
+impl Selector {
     pub fn new(spec: &Spec, dependency: &Dependency) -> Self {
-        PathSelector {
+        Selector {
             filters: spec.filters.clone().merge(&dependency.filters).to_owned(),
         }
     }
@@ -55,20 +55,11 @@ fn extension_matcher(input: &OsStr) -> MatcherFn {
 
 #[cfg(test)]
 mod tests {
-    use super::PathSelector;
+    use super::Selector;
     use crate::core::Dependency;
     use crate::core::Filters;
     use crate::core::Spec;
-
-    #[macro_export]
-    macro_rules! svec {
-        ($($elem:expr),+ $(,)?) => {{
-            let v = vec![
-                $( String::from($elem), )*
-            ];
-            v
-        }};
-    }
+    use crate::svec;
 
     macro_rules! assert_selection {
         ($cond:expr) => {{
@@ -96,7 +87,7 @@ mod tests {
             .add_ignores(&svec!["2"])
             .add_extensions(&svec!["3"]);
 
-        let sut = &PathSelector::new(spec, dep);
+        let sut = &Selector::new(spec, dep);
 
         assert_eq!(
             spec.filters.clone().merge(&dep.filters).to_owned(),
@@ -112,7 +103,7 @@ mod tests {
             .add_ignores(&svec!["ignored/a", "target/a/ignored"])
             .add_extensions(&svec!["proto"]);
 
-        let sut = PathSelector {
+        let sut = Selector {
             filters: filters.to_owned(),
         };
 
@@ -132,7 +123,7 @@ mod tests {
             .add_ignores(&svec!["ignored/a", "target/a/ignored"])
             .add_extensions(&svec!["proto"]);
 
-        let sut = PathSelector {
+        let sut = Selector {
             filters: filters.to_owned(),
         };
 

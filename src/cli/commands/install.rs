@@ -1,15 +1,13 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use log::debug;
 use log::error;
 use log::info;
 
-use crate::core::CachePathFactory;
 use crate::core::LoadableConfig;
 use crate::core::Spec;
+use crate::core::SpecInstaller;
 use crate::core::SpecLock;
-use crate::core::VendorManager;
 use crate::VENDOR_LOCK_YML;
 use crate::VENDOR_YML;
 
@@ -27,10 +25,7 @@ pub fn run() {
         Err(_) => Arc::new(RwLock::new(SpecLock::new())),
     };
 
-    let cache = CachePathFactory::create_default();
-    debug!("cache: {}", &cache.display());
-
-    let manager = VendorManager::new(cache, Arc::clone(&spec), Arc::clone(&lock));
+    let manager = SpecInstaller::new(Arc::clone(&spec), Arc::clone(&lock));
     if let Err(err) = manager.install() {
         error!("install failed: {}", err);
         return;
