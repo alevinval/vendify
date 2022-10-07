@@ -1,11 +1,6 @@
 use clap::Parser;
 use clap::Subcommand;
 
-pub mod add;
-pub mod init;
-pub mod install;
-pub mod update;
-
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]

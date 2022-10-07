@@ -1,3 +1,4 @@
+pub use controller::Controller;
 pub use dependency::Dependency;
 pub use dependency::DependencyLock;
 pub use filters::Filters;
@@ -9,6 +10,7 @@ pub use spec::Spec;
 pub use spec_lock::SpecLock;
 
 mod cache;
+mod controller;
 mod dependency;
 mod filters;
 mod git;

@@ -5,34 +5,29 @@ use simplelog::LevelFilter;
 use simplelog::TermLogger;
 use simplelog::TerminalMode;
 
-use super::commands;
-use super::commands::VendorCli;
-use super::commands::VendorCommand;
+use self::structs::VendorCli;
+use self::structs::VendorCommand;
+use crate::core::Controller;
+
+mod structs;
 
 pub fn run() {
     let cli = VendorCli::parse();
 
     setup_logging(cli.debug);
 
+    let controller = Controller::new();
     match cli.command {
-        VendorCommand::Init {} => {
-            commands::init::run();
-        }
+        VendorCommand::Init {} => controller.init(),
         VendorCommand::Add {
             url,
             refname,
             extensions,
             targets,
             ignores,
-        } => {
-            commands::add::run(&url, &refname, extensions, targets, ignores);
-        }
-        VendorCommand::Install {} => {
-            commands::install::run();
-        }
-        VendorCommand::Update {} => {
-            commands::update::run();
-        }
+        } => controller.add(&url, &refname, extensions, targets, ignores),
+        VendorCommand::Install {} => controller.install(),
+        VendorCommand::Update {} => controller.update(),
     };
 }
 

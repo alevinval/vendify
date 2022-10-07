@@ -15,7 +15,6 @@ pub struct Spec {
 
     /// Vendor directory path
     #[serde(default = "default_vendor")]
-    #[serde(skip_serializing_if = "is_default_vendor")]
     pub vendor: String,
 
     #[serde(flatten)]
@@ -61,10 +60,6 @@ fn default_vendor() -> String {
     "vendor".to_string()
 }
 
-fn is_default_vendor(other: &str) -> bool {
-    other.eq_ignore_ascii_case(&default_vendor())
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -98,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_initialise_save_then_load() -> Result<()> {
+    fn test_initialize_save_then_load() -> Result<()> {
         let tmp = tempfile();
         let dep = Dependency::new("some url", "some ref");
         let mut sut = Spec::new();
@@ -114,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_cannot_load_invalid_file() -> Result<()> {
-        let mut out = tempfile::NamedTempFile::new()?;
+        let mut out = tempfile();
         out.write(b"bf")?;
         out.flush()?;
 
