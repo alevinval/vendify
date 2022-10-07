@@ -82,18 +82,16 @@ fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<Depen
     let spec_lock = installer.spec_lock.read().unwrap();
     let dependency_lock = spec_lock.find_dep(&dependency.url);
     let importer = Importer::new(&spec, dependency, dependency_lock, &repository);
-    let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    importer.install(vendor_path)
+    importer.install()
 }
 
 fn inner_update(installer: &Installer, dependency: &Dependency) -> Result<DependencyLock> {
     let repository = installer.cache.get_repository(dependency)?;
     let spec = installer.spec.read().unwrap();
     let importer = Importer::new(&spec, dependency, None, &repository);
-    let vendor_path = &installer.spec.read().unwrap().vendor;
 
-    importer.update(vendor_path)
+    importer.update()
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {

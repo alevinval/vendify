@@ -1,30 +1,29 @@
-use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
 use log::debug;
 use log::info;
 
-use self::iterator::WalkdirPathIterator;
+use self::collector::Collector;
 use self::selector::Selector;
 use crate::core::Dependency;
 use crate::core::DependencyLock;
 use crate::core::Repository;
 use crate::core::Spec;
 
-mod iterator;
+mod collector;
 mod selector;
 
 pub struct Importer<'a> {
     dependency: &'a Dependency,
     dependency_lock: Option<&'a DependencyLock>,
     repository: &'a Repository,
-    selector: Selector,
+    collector: Collector,
 }
 
 impl<'a> Importer<'a> {
     pub fn new(
-        vendor_spec: &'a Spec,
+        spec: &'a Spec,
         dependency: &'a Dependency,
         dependency_lock: Option<&'a DependencyLock>,
         repository: &'a Repository,
@@ -33,54 +32,52 @@ impl<'a> Importer<'a> {
             dependency,
             dependency_lock,
             repository,
-            selector: Selector::new(vendor_spec, dependency),
+            collector: Collector::new(
+                &repository.path(),
+                &Path::new(&spec.vendor),
+                Selector::new(spec, dependency),
+            ),
         }
     }
 
     /// Install copies the files of the dependency into the vendor folder.
     /// It respects the dependency lock, when passed.
-    pub fn install<P: AsRef<Path>>(&self, to: P) -> Result<DependencyLock> {
+    pub fn install(&self) -> Result<DependencyLock> {
         let refname = self.get_locked_refname();
 
         info!("installing {}@{}", self.dependency.url, refname);
-        self.repository.fetch(refname)?;
+        self.repository.fetch(&self.dependency.refname)?;
         self.repository.checkout(refname)?;
-        self.import(to)
+        self.import()
     }
 
     /// Update fetches latest changes from the git remote, against the
     /// reference. Then it installs the dependency. This will ignore the
     /// lock file and generate a new lock with the updated reference.
-    pub fn update<P: AsRef<Path>>(&self, to: P) -> Result<DependencyLock> {
+    pub fn update(&self) -> Result<DependencyLock> {
         let refname = self.dependency.refname.as_str();
 
         info!("updating {}@{}", self.dependency.url, refname);
         self.repository.fetch(refname)?;
         self.repository.reset(refname)?;
-        self.import(to)
+        self.import()
     }
 
-    fn import<P: AsRef<Path>>(&self, dst_root: P) -> Result<DependencyLock> {
-        self.copy_files(dst_root)?;
+    fn import(&self) -> Result<DependencyLock> {
+        self.copy_files()?;
         let locked = self.get_locked_dependency()?;
         info!("\t🔒 {}", locked.refname);
         Ok(locked)
     }
 
-    fn copy_files<P: AsRef<Path>>(&self, dst_root: P) -> Result<(), anyhow::Error> {
-        let dst_root = dst_root.as_ref();
-        let iterator = WalkdirPathIterator::new(&self.repository.path());
-        for src_path in iterator.iter() {
-            let relative_path = src_path.strip_prefix(self.repository.path())?;
-            if self.selector.select(relative_path) {
-                let dst_path = dst_root.join(relative_path);
-                debug!(
-                    "\t.../{} -> {}",
-                    relative_path.display(),
-                    dst_path.display()
-                );
-                copy_file(src_path, dst_path)?;
-            }
+    fn copy_files(&self) -> Result<()> {
+        for collected in self.collector.iter() {
+            debug!(
+                "\t.../{} -> {}",
+                collected.src_rel.display(),
+                collected.dst.display()
+            );
+            collected.copy()?;
         }
         Ok(())
     }
@@ -98,57 +95,5 @@ impl<'a> Importer<'a> {
             url: self.dependency.url.clone(),
             refname: refname.to_string(),
         })
-    }
-}
-
-fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
-    if let Some(parent) = to.as_ref().parent() {
-        fs::create_dir_all(parent)?
-    };
-    fs::copy(from, to)?;
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::tests::test_util::read_as_str;
-    use crate::core::tests::test_util::tempdir;
-    use crate::core::tests::test_util::write_to;
-
-    #[test]
-    fn test_copy_file_when_dst_parent_does_not_exit() -> Result<()> {
-        let from = tempdir().path().join("src/path/file.txt");
-        fs::create_dir_all(from.parent().unwrap())?;
-        write_to(&from, "some-file");
-
-        let to = tempdir().path().join("dst/parent/file.txt");
-
-        assert!(!to.exists());
-        copy_file(&from, &to)?;
-        assert!(to.exists());
-
-        let contents = read_as_str(to);
-        assert_eq!("some-file", contents);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_copy_file_when_dst_parent_exists() -> Result<()> {
-        let from = tests::tempdir().path().join("src/path/file.txt");
-        fs::create_dir_all(from.parent().unwrap())?;
-        write_to(&from, "some-file");
-
-        let to = tests::tempdir().path().join("file.txt");
-
-        assert!(!to.exists());
-        copy_file(&from, &to)?;
-        assert!(to.exists());
-
-        let contents = read_as_str(to);
-        assert_eq!("some-file", contents);
-
-        Ok(())
     }
 }
