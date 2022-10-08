@@ -5,9 +5,9 @@ use clap::Subcommand;
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
 /// CLI tool to vendor and manage dependencies.
-pub struct VendorCli {
+pub struct Cli {
     #[clap(subcommand)]
-    pub command: VendorCommand,
+    pub command: Commands,
 
     /// Enable debug logging
     #[clap(short, long, takes_value = false, parse(from_flag))]
@@ -15,7 +15,7 @@ pub struct VendorCli {
 }
 
 #[derive(Subcommand)]
-pub enum VendorCommand {
+pub enum Commands {
     /// Initialize the working directory
     Init {},
 
