@@ -16,7 +16,7 @@ impl Selector {
         }
     }
 
-    pub fn select<P: AsRef<Path>>(&self, path: P) -> bool {
+    pub fn select_path<P: AsRef<Path>>(&self, path: P) -> bool {
         let path = path.as_ref();
         !self.is_ignored(path) && self.is_target(path) && self.is_extension(path)
     }
@@ -28,7 +28,7 @@ impl Selector {
         }
         !self.is_ignored(dir)
             && (self.filters.targets.is_empty()
-                || inverse_has_prefix(
+                || Selector::inverse_has_prefix(
                     &self.filters.targets,
                     &dir.to_path_buf().into_os_string().into_string().unwrap(),
                 ))
@@ -54,17 +54,18 @@ impl Selector {
     fn is_perfect_match(&self, path: &Path) -> bool {
         self.filters.targets.iter().any(|t| path.eq(Path::new(t)))
     }
+
+    fn inverse_has_prefix(paths: &[String], prefix: &String) -> bool {
+        paths.iter().any(|path| {
+            if prefix.len() > path.len() {
+                prefix.starts_with(path)
+            } else {
+                path.starts_with(prefix)
+            }
+        })
+    }
 }
 
-fn inverse_has_prefix(paths: &[String], prefix: &String) -> bool {
-    paths.iter().any(|path| {
-        if prefix.len() > path.len() {
-            prefix.starts_with(path)
-        } else {
-            path.starts_with(prefix)
-        }
-    })
-}
 type MatcherFn<'a> = Box<dyn Fn(&String) -> bool + 'a>;
 
 fn path_matcher(path: &Path) -> MatcherFn {
@@ -126,13 +127,13 @@ mod tests {
             filters: filters.clone(),
         };
 
-        assert_selection!(sut.select("target/a/file.proto"));
-        assert_selection!(sut.select("readme.md"));
+        assert_selection!(sut.select_path("target/a/file.proto"));
+        assert_selection!(sut.select_path("readme.md"));
 
-        assert_no_selection!(sut.select("target/a/file.txt"));
-        assert_no_selection!(sut.select("target/a/ignored/file.proto"));
-        assert_no_selection!(sut.select("target/noextension"));
-        assert_no_selection!(sut.select("ignored/a/file.proto"));
+        assert_no_selection!(sut.select_path("target/a/file.txt"));
+        assert_no_selection!(sut.select_path("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select_path("target/noextension"));
+        assert_no_selection!(sut.select_path("ignored/a/file.proto"));
     }
 
     #[test]
@@ -146,12 +147,12 @@ mod tests {
             filters: filters.clone(),
         };
 
-        assert_selection!(sut.select("target/a/file.proto"));
+        assert_selection!(sut.select_path("target/a/file.proto"));
 
-        assert_no_selection!(sut.select("readme.md"));
-        assert_no_selection!(sut.select("target/a/file.txt"));
-        assert_no_selection!(sut.select("target/a/ignored/file.proto"));
-        assert_no_selection!(sut.select("target/noextension"));
-        assert_no_selection!(sut.select("ignored/a/file.proto"));
+        assert_no_selection!(sut.select_path("readme.md"));
+        assert_no_selection!(sut.select_path("target/a/file.txt"));
+        assert_no_selection!(sut.select_path("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select_path("target/noextension"));
+        assert_no_selection!(sut.select_path("ignored/a/file.proto"));
     }
 }

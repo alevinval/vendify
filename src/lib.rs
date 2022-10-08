@@ -5,8 +5,6 @@ pub mod cli;
 mod control;
 mod dependency;
 mod filters;
-mod git;
-mod importer;
 mod installer;
 mod loadable_config;
 mod preset;

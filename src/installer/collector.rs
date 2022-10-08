@@ -54,7 +54,7 @@ impl Collector {
         if entry.path().is_dir() {
             self.selector.select_dir(&rel)
         } else {
-            self.selector.select(&rel)
+            self.selector.select_path(&rel)
         }
     }
 

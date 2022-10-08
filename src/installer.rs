@@ -9,12 +9,16 @@ use anyhow::format_err;
 use anyhow::Result;
 use log::error;
 
+use self::importer::Importer;
 use crate::cache::Manager;
 use crate::dependency::Dependency;
 use crate::dependency::Lock;
-use crate::importer::Importer;
 use crate::spec::Spec;
 use crate::spec_lock::SpecLock;
+
+mod collector;
+mod importer;
+mod selector;
 
 type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<Lock> + Sync + Send;
 

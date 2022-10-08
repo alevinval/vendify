@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fs::create_dir_all;
 use std::fs::remove_dir_all;
 use std::path::Path;
@@ -15,7 +16,7 @@ use git2_credentials::CredentialHandler;
 use log::error;
 use log::info;
 
-pub struct Git {}
+pub struct Git;
 
 impl Git {
     pub fn get_current_refname(repository_path: &Path) -> Result<Oid> {
@@ -108,7 +109,7 @@ impl Git {
     }
 
     #[allow(clippy::unused_self)]
-    fn get_fetch_options(&self) -> Result<FetchOptions<'_>> {
+    fn get_fetch_options(&self) -> Result<FetchOptions> {
         let config = match Config::open_default() {
             Ok(it) => it,
             Err(err) => {

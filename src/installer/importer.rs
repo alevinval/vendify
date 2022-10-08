@@ -4,15 +4,12 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 
-use self::collector::Collector;
-use self::selector::Selector;
+use super::collector::Collector;
+use super::selector::Selector;
 use crate::dependency::Dependency;
 use crate::dependency::Lock;
 use crate::repository::Repository;
 use crate::spec::Spec;
-
-mod collector;
-mod selector;
 
 pub struct Importer<'a> {
     dependency: &'a Dependency,
