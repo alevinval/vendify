@@ -1,8 +1,7 @@
 use std::env;
 
-pub mod cli;
-
 mod cache;
+pub mod cli;
 mod control;
 mod dependency;
 mod filters;
