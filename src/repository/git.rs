@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fs::create_dir_all;
 use std::fs::remove_dir_all;
 use std::path::Path;
@@ -74,8 +73,8 @@ impl Git {
         let (object, reference) = repository.revparse_ext(refname)?;
         repository.checkout_tree(&object, None)?;
         match reference {
-            Some(gref) => {
-                let name = gref
+            Some(reference) => {
+                let name = reference
                     .name()
                     .expect("invalid reference, contains non-utf8 characters");
                 repository.set_head(name)?;

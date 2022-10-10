@@ -10,9 +10,9 @@ use anyhow::Result;
 use log::error;
 
 use self::importer::Importer;
-use crate::cache::Manager;
-use crate::dependency::Dependency;
-use crate::dependency::Lock;
+use crate::cache::Cache;
+use crate::deps::Dependency;
+use crate::deps::LockedDependency;
 use crate::spec::Spec;
 use crate::spec_lock::SpecLock;
 
@@ -20,42 +20,42 @@ mod collector;
 mod importer;
 mod selector;
 
-type ActionFn = dyn Fn(&Installer, &Dependency) -> Result<Lock> + Sync + Send;
+type ActionFn = fn(&Installer, &Dependency) -> Result<LockedDependency>;
 
 pub struct Installer {
-    cache: Manager,
+    cache: Cache,
     spec: Arc<RwLock<Spec>>,
     spec_lock: Arc<RwLock<SpecLock>>,
 }
 
 impl Installer {
-    pub fn new(spec: Arc<RwLock<Spec>>, lock: Arc<RwLock<SpecLock>>) -> Self {
+    pub fn new(cache: Cache, spec: Arc<RwLock<Spec>>, spec_lock: Arc<RwLock<SpecLock>>) -> Self {
         Installer {
-            cache: Manager::new(),
+            cache,
             spec,
-            spec_lock: lock,
+            spec_lock,
         }
     }
 
-    pub fn install(self) -> Result<()> {
-        self.execute(&inner_install)
+    pub fn install(&self) -> Result<()> {
+        self.execute(Self::inner_install)
     }
 
-    pub fn update(self) -> Result<()> {
-        self.execute(&inner_update)
+    pub fn update(&self) -> Result<()> {
+        self.execute(Self::inner_update)
     }
 
-    fn execute(self, action: &ActionFn) -> Result<()> {
+    fn execute(&self, action: ActionFn) -> Result<()> {
         self.cache.ensure()?;
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
         let deps = &self.spec.read().unwrap().deps;
 
         thread::scope(|s| {
-            let mut handles: Vec<ScopedJoinHandle<Result<Lock>>> = vec![];
+            let mut handles: Vec<ScopedJoinHandle<Result<LockedDependency>>> = vec![];
 
             for dep in deps.iter() {
-                handles.push(s.spawn(|| action(&self, dep)));
+                handles.push(s.spawn(|| action(self, dep)));
             }
 
             for handle in handles {
@@ -68,34 +68,34 @@ impl Installer {
         Ok(())
     }
 
-    fn update_lock(&self, result: Result<Lock>) {
+    fn update_lock(&self, result: Result<LockedDependency>) {
         match result {
-            Ok(updated_dependency_lock) => {
-                self.spec_lock.write().unwrap().add(updated_dependency_lock);
+            Ok(dep) => {
+                self.spec_lock.write().unwrap().add_locked_dependency(dep);
             }
             Err(err) => {
                 error!("failed importing: {}", err);
             }
         }
     }
-}
 
-fn inner_install(installer: &Installer, dependency: &Dependency) -> Result<Lock> {
-    let repository = installer.cache.get_repository(dependency)?;
-    let spec = installer.spec.read().unwrap();
-    let spec_lock = installer.spec_lock.read().unwrap();
-    let dependency_lock = spec_lock.find_dep(&dependency.url);
-    let importer = Importer::new(&spec, dependency, dependency_lock, &repository);
+    fn inner_install(&self, dependency: &Dependency) -> Result<LockedDependency> {
+        let repository = self.cache.get_repository(dependency)?;
+        let spec = self.spec.read().unwrap();
+        let spec_lock = self.spec_lock.read().unwrap();
+        let dependency_lock = spec_lock.get_locked_dependency(&dependency.url);
+        let importer = Importer::new(&spec, dependency, dependency_lock, &repository);
 
-    importer.install()
-}
+        importer.install()
+    }
 
-fn inner_update(installer: &Installer, dependency: &Dependency) -> Result<Lock> {
-    let repository = installer.cache.get_repository(dependency)?;
-    let spec = installer.spec.read().unwrap();
-    let importer = Importer::new(&spec, dependency, None, &repository);
+    fn inner_update(&self, dependency: &Dependency) -> Result<LockedDependency> {
+        let repository = self.cache.get_repository(dependency)?;
+        let spec = self.spec.read().unwrap();
+        let importer = Importer::new(&spec, dependency, None, &repository);
 
-    importer.update()
+        importer.update()
+    }
 }
 
 fn recreate_vendor_path<P: AsRef<Path>>(path: P) -> Result<()> {

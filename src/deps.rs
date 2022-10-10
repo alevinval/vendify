@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::filters::Filters;
+use crate::preset::Preset;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Dependency {
@@ -15,7 +16,7 @@ pub struct Dependency {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
-pub struct Lock {
+pub struct LockedDependency {
     pub url: String,
     pub refname: String,
 }
@@ -24,7 +25,7 @@ impl Dependency {
     /// Creates a new dependency configuration, uses sane default values, which
     /// come pre-configured for working with proto files.
     pub fn new(url: &str, refname: &str) -> Self {
-        Dependency {
+        Self {
             url: url.to_string(),
             refname: refname.to_string(),
             filters: Filters::new(),
@@ -32,16 +33,34 @@ impl Dependency {
     }
 
     /// Updates the values, taken from another dependency.
-    pub fn update_from(&mut self, other: &Dependency) {
+    pub fn update_from(&mut self, other: &Dependency) -> &Self {
         self.refname = other.refname.clone();
         self.filters = other.filters.clone();
+        self
+    }
+
+    pub fn apply_preset(&mut self, preset: &Preset) -> &Self {
+        if preset.force_filters() {
+            self.filters.clear();
+        }
+        self.filters.merge(&preset.dependency_filters(self));
+        self
+    }
+}
+
+impl LockedDependency {
+    pub fn new(url: &str, refname: &str) -> Self {
+        Self {
+            url: url.to_string(),
+            refname: refname.to_string(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::Dependency;
+    use super::*;
 
     #[test]
     fn test_dependency_update_from() {

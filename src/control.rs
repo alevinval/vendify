@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -6,45 +6,54 @@ use log::error;
 use log::info;
 use log::warn;
 
-use super::dependency::Dependency;
+use super::deps::Dependency;
 use super::installer::Installer;
-use super::loadable_config::LoadableConfig;
 use super::spec::Spec;
 use super::spec_lock::SpecLock;
-use super::VENDOR_LOCK_YML;
-use super::VENDOR_YML;
+use crate::cache::Cache;
+use crate::preset::Preset;
 
-pub struct Controller {}
+pub struct Controller {
+    preset: Arc<Preset>,
+}
 
 impl Controller {
-    pub fn init() {
+    pub fn new(preset: Preset) -> Self {
+        Self {
+            preset: Arc::new(preset),
+        }
+    }
+
+    pub fn init(&self) {
         info!("initializing vendor in current directory");
 
-        if Path::new(VENDOR_YML).exists() {
-            warn!("{} already exists", VENDOR_YML);
+        let spec_path: &PathBuf = &self.preset.spec().into();
+        if spec_path.exists() {
+            warn!("{} already exists", spec_path.display());
             return;
         }
 
-        let mut config = Spec::new();
-        if let Err(err) = config.save_to(VENDOR_YML) {
-            error!("failed initializing: {}", err);
+        let mut spec = Spec::with_preset(self.preset.clone());
+        if let Err(err) = spec.save() {
+            error!("{err}");
             return;
         }
 
-        info!("{} has been created", VENDOR_YML);
+        info!("{} has been created", spec_path.display());
     }
 
     pub fn add(
+        &self,
         url: &str,
         refname: &str,
         extensions: Option<Vec<String>>,
         targets: Option<Vec<String>>,
         ignores: Option<Vec<String>>,
     ) {
-        let mut spec = match Spec::load_from(VENDOR_YML) {
-            Ok(config) => config,
+        let mut spec = match Spec::load_from(self.preset.clone()) {
+            Ok(spec) => spec,
             Err(err) => {
-                error!("{}", err);
+                error!("{err}");
                 return;
             }
         };
@@ -59,53 +68,54 @@ impl Controller {
         if let Some(ignores) = ignores {
             dep.filters.add_ignores(&ignores);
         }
-        spec.add(dep);
+        spec.add_dependency(dep);
 
-        match spec.save_to(VENDOR_YML) {
+        match spec.save() {
             Ok(_) => {
-                info!("added dependency {}@{}", url, refname);
+                info!("added dependency {url}@{refname}");
             }
             Err(err) => {
-                error!("add failed: {}", err);
+                error!("cannot add dependency: {err}");
             }
         }
     }
 
-    pub fn install() {
-        let spec = match Spec::load_from(VENDOR_YML) {
+    pub fn install(&self) {
+        let spec = match Spec::load_from(self.preset.clone()) {
             Ok(value) => Arc::new(RwLock::new(value)),
             Err(err) => {
-                error!("{}", err);
+                error!("{err}");
                 return;
             }
         };
 
-        let lock = match SpecLock::load_from(VENDOR_LOCK_YML) {
+        let lock = match SpecLock::load_from(self.preset.clone()) {
             Ok(value) => Arc::new(RwLock::new(value)),
-            Err(_) => Arc::new(RwLock::new(SpecLock::new())),
+            Err(_) => Arc::new(RwLock::new(SpecLock::with_preset(self.preset.clone()))),
         };
 
-        let manager = Installer::new(Arc::clone(&spec), Arc::clone(&lock));
-        if let Err(err) = manager.install() {
-            error!("install failed: {}", err);
+        let cache = Cache::new(&self.preset);
+        let installer = Installer::new(cache, spec.clone(), lock.clone());
+        if let Err(err) = installer.install() {
+            error!("install failed: {err}");
             return;
         };
 
-        if let Err(err) = lock.write().unwrap().save_to(VENDOR_LOCK_YML) {
-            error!("install failed: {}", err);
+        if let Err(err) = lock.write().unwrap().save() {
+            error!("install failed: {err}");
             return;
         }
 
-        if let Err(err) = spec.write().unwrap().save_to(VENDOR_YML) {
-            error!("install failed: {}", err);
+        if let Err(err) = spec.write().unwrap().save() {
+            error!("install failed: {err}");
             return;
         }
 
         info!("install success ✅");
     }
 
-    pub fn update() {
-        let spec = match Spec::load_from(VENDOR_YML) {
+    pub fn update(&self) {
+        let spec = match Spec::load_from(self.preset.clone()) {
             Ok(value) => Arc::new(RwLock::new(value)),
             Err(err) => {
                 error!("{}", err);
@@ -113,24 +123,25 @@ impl Controller {
             }
         };
 
-        let lock = match SpecLock::load_from(VENDOR_LOCK_YML) {
+        let lock = match SpecLock::load_from(self.preset.clone()) {
             Ok(value) => Arc::new(RwLock::new(value)),
-            Err(_) => Arc::new(RwLock::new(SpecLock::new())),
+            Err(_) => Arc::new(RwLock::new(SpecLock::with_preset(self.preset.clone()))),
         };
 
-        let manager = Installer::new(Arc::clone(&spec), Arc::clone(&lock));
-        if let Err(err) = manager.update() {
-            error!("update failed: {}", err);
+        let cache = Cache::new(&self.preset);
+        let installer = Installer::new(cache, spec.clone(), lock.clone());
+        if let Err(err) = installer.update() {
+            error!("update failed: {err}");
             return;
         };
 
-        if let Err(err) = lock.write().unwrap().save_to(VENDOR_LOCK_YML) {
-            error!("update failed: {}", err);
+        if let Err(err) = lock.write().unwrap().save() {
+            error!("update failed: {err}");
             return;
         }
 
-        if let Err(err) = spec.write().unwrap().save_to(VENDOR_YML) {
-            error!("update failed: {}", err);
+        if let Err(err) = spec.write().unwrap().save() {
+            error!("update failed: {err}");
             return;
         }
 

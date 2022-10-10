@@ -1,7 +1,6 @@
-use std::ffi::OsStr;
 use std::path::Path;
 
-use crate::dependency::Dependency;
+use crate::deps::Dependency;
 use crate::filters::Filters;
 use crate::spec::Spec;
 
@@ -11,7 +10,7 @@ pub struct Selector {
 
 impl Selector {
     pub fn new(spec: &Spec, dependency: &Dependency) -> Self {
-        Selector {
+        Self {
             filters: spec.filters.clone().merge(&dependency.filters).clone(),
         }
     }
@@ -28,23 +27,33 @@ impl Selector {
         }
         !self.is_ignored(dir)
             && (self.filters.targets.is_empty()
-                || Selector::inverse_has_prefix(
+                || Self::inverse_has_prefix(
                     &self.filters.targets,
                     &dir.to_path_buf().into_os_string().into_string().unwrap(),
                 ))
     }
 
     fn is_target(&self, path: &Path) -> bool {
-        self.filters.targets.iter().any(path_matcher(path)) || self.filters.targets.is_empty()
+        self.filters
+            .targets
+            .iter()
+            .any(|target| Self::starts_with(path, target))
+            || self.filters.targets.is_empty()
     }
 
     fn is_ignored(&self, path: &Path) -> bool {
-        self.filters.ignores.iter().any(path_matcher(path))
+        self.filters
+            .ignores
+            .iter()
+            .any(|ignore| Self::starts_with(path, ignore))
     }
 
     fn is_extension(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension() {
-            self.filters.extensions.iter().any(extension_matcher(ext))
+            self.filters
+                .extensions
+                .iter()
+                .any(|target| ext.eq_ignore_ascii_case(target))
                 || self.is_perfect_match(path)
         } else {
             self.is_perfect_match(path)
@@ -52,7 +61,11 @@ impl Selector {
     }
 
     fn is_perfect_match(&self, path: &Path) -> bool {
-        self.filters.targets.iter().any(|t| path.eq(Path::new(t)))
+        self.filters
+            .targets
+            .iter()
+            .map(Path::new)
+            .any(|target| path == target)
     }
 
     fn inverse_has_prefix(paths: &[String], prefix: &String) -> bool {
@@ -64,20 +77,15 @@ impl Selector {
             }
         })
     }
-}
 
-type MatcherFn<'a> = Box<dyn Fn(&String) -> bool + 'a>;
-
-fn path_matcher(path: &Path) -> MatcherFn {
-    Box::new(|base| path.starts_with(base))
-}
-
-fn extension_matcher(input: &OsStr) -> MatcherFn {
-    Box::new(|ext| input.eq_ignore_ascii_case(ext))
+    fn starts_with(path: &Path, prefix: &str) -> bool {
+        path.starts_with(prefix)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::svec;
 

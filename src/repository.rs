@@ -6,7 +6,7 @@ use anyhow::Result;
 use git2::Oid;
 
 use self::git::Git;
-use crate::dependency::Dependency;
+use crate::deps::Dependency;
 
 mod git;
 
@@ -18,7 +18,7 @@ pub struct Repository {
 impl Repository {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let git = Git {};
-        Repository {
+        Self {
             path: path.as_ref().to_owned(),
             git,
         }

@@ -1,8 +1,13 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
-use tempfile::NamedTempFile;
 use tempfile::TempDir;
+
+use crate::deps::Dependency;
+use crate::filters::Filters;
+use crate::preset::Builder;
+use crate::preset::Preset;
 
 #[macro_export]
 macro_rules! svec {
@@ -21,19 +26,84 @@ pub fn tempdir() -> TempDir {
     }
 }
 
-pub fn tempfile() -> NamedTempFile {
-    match tempfile::NamedTempFile::new() {
-        Ok(file) => file,
-        Err(err) => panic!("cannot create named temporary file: {err}"),
-    }
-}
-
 pub fn write_to<P: AsRef<Path>>(dst: P, data: &str) {
     if let Err(err) = fs::write(&dst, data) {
         panic!("cannot write to {}: {err}", dst.as_ref().display())
     }
 }
 
-pub fn read_as_str<P: AsRef<Path>>(src: P) -> String {
-    fs::read_to_string(src).expect("cannot read path")
+pub fn read_to_string<P: AsRef<Path>>(src: P) -> String {
+    fs::read_to_string(src).expect("cannot read path {src}")
+}
+
+pub fn build_preset() -> Arc<Preset> {
+    preset_builder().build().into()
+}
+
+pub fn build_preset_with_fs(temp_dir: &TempDir) -> Arc<Preset> {
+    let root = temp_dir.path();
+    let tmp = |x: &str| root.join(x).into_os_string().into_string().unwrap();
+
+    Arc::new(
+        preset_builder()
+            .name("test-preset")
+            .cache(&tmp(".test-cache"))
+            .vendor(&tmp(".test-vendor"))
+            .spec(&tmp(".test-vendor.yml"))
+            .spec_lock(&tmp(".test-vendor-lock.yml"))
+            .build(),
+    )
+}
+
+fn preset_builder() -> Builder {
+    let mut filters = Filters::new();
+    filters
+        .add_targets(&svec!("global/target/a"))
+        .add_ignores(&svec!("global/ignore/a"))
+        .add_extensions(&svec!("txt"));
+
+    let dependency_filters = |_dep: &Dependency| {
+        let mut filters = Filters::new();
+        filters
+            .add_targets(&svec!("dep/target/a"))
+            .add_ignores(&svec!("dep/ignore/a"))
+            .add_extensions(&svec!("md"));
+        filters
+    };
+
+    Builder::new()
+        .name("test-preset")
+        .cache(".test-cache")
+        .vendor(".test-vendor")
+        .spec(".test-vendor.yml")
+        .spec_lock(".test-vendor-lock.yml")
+        .global_filters(filters)
+        .dependency_filters(dependency_filters)
+}
+
+pub struct TestContext {
+    pub preset: Arc<Preset>,
+    _temp_dir: TempDir,
+}
+
+impl TestContext {
+    pub fn new() -> Self {
+        let temp_dir = tempdir();
+        TestContext {
+            preset: build_preset_with_fs(&temp_dir),
+            _temp_dir: temp_dir,
+        }
+    }
+}
+
+impl Default for TestContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<&TestContext> for Arc<Preset> {
+    fn from(ctx: &TestContext) -> Self {
+        ctx.preset.clone()
+    }
 }

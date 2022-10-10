@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
+use anyhow::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::dependency::Lock;
-use crate::loadable_config::LoadableConfig;
+use crate::deps::LockedDependency;
+use crate::preset::Preset;
+use crate::yaml;
 use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -11,21 +15,45 @@ pub struct SpecLock {
     pub version: String,
 
     /// List of locked dependencies
-    pub deps: Vec<Lock>,
+    pub deps: Vec<LockedDependency>,
+
+    #[serde(skip)]
+    preset: Arc<Preset>,
 }
 
 impl SpecLock {
-    pub fn new() -> Self {
-        SpecLock {
+    pub fn with_preset(preset: Arc<Preset>) -> Self {
+        let mut lock = Self {
             version: VERSION.to_owned(),
             deps: Vec::new(),
-        }
+            preset: preset.clone(),
+        };
+        lock.apply_preset(preset);
+        lock
     }
 
-    pub fn add(&mut self, dep: Lock) {
-        match self.find_dep_mut(&dep.url) {
+    pub fn load_from(preset: Arc<Preset>) -> Result<Self> {
+        let mut lock: SpecLock = yaml::load(preset.spec_lock())?;
+        lock.apply_preset(preset);
+        Ok(lock)
+    }
+
+    pub fn save(&mut self) -> Result<()> {
+        self.lint();
+        yaml::save(self, self.preset.spec_lock())
+    }
+
+    pub fn apply_preset(&mut self, preset: Arc<Preset>) {
+        if self.version < VERSION.into() {
+            self.version = VERSION.into();
+        }
+        self.preset = preset;
+    }
+
+    pub fn add_locked_dependency(&mut self, dep: LockedDependency) {
+        match self.get_mut_locked_dependency(&dep.url) {
             Some(found) => {
-                found.refname = dep.refname.clone();
+                found.refname = dep.refname;
             }
             None => {
                 self.deps.push(dep);
@@ -33,88 +61,100 @@ impl SpecLock {
         }
     }
 
-    pub fn find_dep(&self, url: &str) -> Option<&Lock> {
+    pub fn get_locked_dependency(&self, url: &str) -> Option<&LockedDependency> {
         self.deps.iter().find(|l| l.url.eq_ignore_ascii_case(url))
     }
 
-    fn find_dep_mut(&mut self, url: &str) -> Option<&mut Lock> {
+    fn get_mut_locked_dependency(&mut self, url: &str) -> Option<&mut LockedDependency> {
         self.deps
             .iter_mut()
             .find(|l| l.url.eq_ignore_ascii_case(url))
     }
-}
 
-impl LoadableConfig<SpecLock> for SpecLock {
     fn lint(&mut self) {
         self.deps.sort_by(|a, b| a.url.cmp(&b.url));
         self.deps
             .dedup_by(|a, b| a.url.eq_ignore_ascii_case(&b.url));
+    }
+
+    #[cfg(test)]
+    pub fn new() -> Self {
+        Self::with_preset(Arc::new(Preset::default()))
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use std::io::Write;
-
-    use anyhow::Result;
-
     use super::*;
-    use crate::test_utils::tempfile;
+    use crate::test_utils::build_preset;
+    use crate::test_utils::TestContext;
 
     #[test]
-    fn test_new_default_instance() {
+    fn test_spec_lock_new() {
         let sut = SpecLock::new();
 
+        assert_eq!(VERSION, sut.version, "should have the crate version");
+        assert_eq!(0, sut.deps.len(), "should have no deps");
         assert_eq!(
-            VERSION, sut.version,
-            "default instance version should be crate version"
+            &Preset::default(),
+            sut.preset.as_ref(),
+            "should use default preset"
         );
-        assert_eq!(0, sut.deps.len(), "default instance should have no deps");
     }
 
     #[test]
-    fn test_add_dependency() {
-        let mut sut = SpecLock::new();
-        let dep = Lock {
-            url: "some url".to_string(),
-            refname: "some ref".to_string(),
-        };
+    fn test_spec_lock_from_preset() {
+        let preset = build_preset();
+        let sut = SpecLock::with_preset(preset.clone());
 
-        sut.add(dep.clone());
+        assert_eq!(VERSION, sut.version, "should have the crate version");
+        assert_eq!(0, sut.deps.len(), "should have no deps");
+        assert_eq!(*preset, *sut.preset, "should use the provided preset");
+    }
+
+    #[test]
+    fn test_spec_lock_add_dependency() {
+        let mut sut = SpecLock::new();
+        let dep = LockedDependency::new("some-url", "some-refname");
+
+        sut.add_locked_dependency(dep.clone());
 
         assert_eq!(1, sut.deps.len());
-        assert_eq!(dep, sut.deps.first().unwrap().clone());
+        assert_eq!(dep, sut.deps[0]);
     }
 
     #[test]
-    fn test_initialise_save_then_load() -> Result<()> {
-        let tmp = tempfile();
+    fn test_spec_lock_apply_preset_updates_version() -> Result<()> {
+        let preset = &TestContext::new();
+        let mut sut = SpecLock::with_preset(preset.into());
+        sut.version = "0.0.0".into();
 
-        let dep = Lock {
-            url: "some url".to_string(),
-            refname: "some ref".to_string(),
-        };
-        let mut sut = SpecLock::new();
-        sut.add(dep);
+        sut.save()?;
 
-        sut.save_to(&tmp)?;
-        let actual = SpecLock::load_from(&tmp)?;
-
-        assert_eq!(sut, actual);
-
+        let actual = SpecLock::load_from(preset.into())?;
+        assert_eq!(VERSION, actual.version);
         Ok(())
     }
 
     #[test]
-    fn test_cannot_load_invalid_file() -> Result<()> {
-        let mut out = tempfile();
-        out.write_all(b"bf")?;
-        out.flush()?;
+    fn test_spec_lock_with_preset_then_save_then_load() -> Result<()> {
+        let dep = LockedDependency::new("some url", "some ref");
+        let context = &TestContext::new();
+        let mut expected = SpecLock::with_preset(context.into());
+        expected.add_locked_dependency(dep);
 
-        let actual = SpecLock::load_from(out);
+        expected.save()?;
+
+        let actual = SpecLock::load_from(context.into()).expect("loaded file");
+        assert_eq!(expected, actual);
+        Ok(())
+    }
+
+    #[test]
+    fn test_spec_lock_cannot_load_from_non_existent_file() {
+        let context = &TestContext::new();
+        let actual = SpecLock::load_from(context.into());
         assert!(actual.is_err(), "there should be an error");
-
-        Ok(())
     }
 }

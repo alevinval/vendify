@@ -8,6 +8,7 @@ use simplelog::TerminalMode;
 use self::structs::Cli;
 use self::structs::Commands;
 use crate::control::Controller;
+use crate::preset::Preset;
 
 mod structs;
 
@@ -16,17 +17,19 @@ pub fn run() {
 
     setup_logging(cli.debug);
 
+    let preset = Preset::new();
+    let controller = Controller::new(preset);
     match cli.command {
-        Commands::Init {} => Controller::init(),
+        Commands::Init {} => controller.init(),
         Commands::Add {
             url,
             refname,
             extensions,
             targets,
             ignores,
-        } => Controller::add(&url, &refname, extensions, targets, ignores),
-        Commands::Install {} => Controller::install(),
-        Commands::Update {} => Controller::update(),
+        } => controller.add(&url, &refname, extensions, targets, ignores),
+        Commands::Install {} => controller.install(),
+        Commands::Update {} => controller.update(),
     };
 }
 

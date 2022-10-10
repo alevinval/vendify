@@ -17,8 +17,8 @@ pub struct Filters {
 }
 
 impl Filters {
-    pub fn new() -> Filters {
-        Filters {
+    pub fn new() -> Self {
+        Self {
             targets: vec![],
             ignores: vec![],
             extensions: vec![],
@@ -49,8 +49,7 @@ impl Filters {
     pub fn merge(&mut self, other: &Filters) -> &mut Self {
         self.add_targets(&other.targets)
             .add_ignores(&other.ignores)
-            .add_extensions(&other.extensions);
-        self
+            .add_extensions(&other.extensions)
     }
 
     pub fn clear(&mut self) -> &mut Self {
@@ -61,9 +60,16 @@ impl Filters {
     }
 }
 
+impl Default for Filters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Filters;
+
+    use super::*;
     use crate::svec;
 
     fn get_input() -> Vec<String> {
