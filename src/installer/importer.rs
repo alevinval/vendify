@@ -6,14 +6,14 @@ use log::info;
 
 use super::collector::Collector;
 use super::selector::Selector;
-use crate::dependency::Dependency;
-use crate::dependency::Lock;
+use crate::deps::Dependency;
+use crate::deps::LockedDependency;
 use crate::repository::Repository;
 use crate::spec::Spec;
 
 pub struct Importer<'a> {
     dependency: &'a Dependency,
-    dependency_lock: Option<&'a Lock>,
+    dependency_lock: Option<&'a LockedDependency>,
     repository: &'a Repository,
     collector: Collector,
 }
@@ -22,10 +22,10 @@ impl<'a> Importer<'a> {
     pub fn new(
         spec: &'a Spec,
         dependency: &'a Dependency,
-        dependency_lock: Option<&'a Lock>,
+        dependency_lock: Option<&'a LockedDependency>,
         repository: &'a Repository,
     ) -> Self {
-        Importer {
+        Self {
             dependency,
             dependency_lock,
             repository,
@@ -39,7 +39,7 @@ impl<'a> Importer<'a> {
 
     /// Install copies the files of the dependency into the vendor folder.
     /// It respects the dependency lock, when passed.
-    pub fn install(&self) -> Result<Lock> {
+    pub fn install(&self) -> Result<LockedDependency> {
         let refname = self.get_locked_refname();
 
         info!("installing {}@{}", self.dependency.url, refname);
@@ -51,7 +51,7 @@ impl<'a> Importer<'a> {
     /// Update fetches latest changes from the git remote, against the
     /// reference. Then it installs the dependency. This will ignore the
     /// lock file and generate a new lock with the updated reference.
-    pub fn update(&self) -> Result<Lock> {
+    pub fn update(&self) -> Result<LockedDependency> {
         let refname = self.dependency.refname.as_str();
 
         info!("updating {}@{}", self.dependency.url, refname);
@@ -60,7 +60,7 @@ impl<'a> Importer<'a> {
         self.import()
     }
 
-    fn import(&self) -> Result<Lock> {
+    fn import(&self) -> Result<LockedDependency> {
         self.copy_files()?;
         let locked = self.get_locked_dependency()?;
         info!("\t🔒 {}", locked.refname);
@@ -86,11 +86,11 @@ impl<'a> Importer<'a> {
         }
     }
 
-    fn get_locked_dependency(&self) -> Result<Lock> {
+    fn get_locked_dependency(&self) -> Result<LockedDependency> {
         let refname = self.repository.get_current_refname()?;
-        Ok(Lock {
-            url: self.dependency.url.clone(),
-            refname: refname.to_string(),
-        })
+        Ok(LockedDependency::new(
+            &self.dependency.url,
+            &refname.to_string(),
+        ))
     }
 }

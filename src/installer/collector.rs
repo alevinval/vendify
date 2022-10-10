@@ -21,7 +21,7 @@ pub struct CollectedPath {
 
 impl Collector {
     pub fn new<P: AsRef<Path>>(src_root: &P, dst_root: &P, selector: Selector) -> Self {
-        Collector {
+        Self {
             src_root: src_root.as_ref().to_owned(),
             dst_root: dst_root.as_ref().to_owned(),
             selector,
@@ -62,7 +62,7 @@ impl Collector {
         entry
             .path()
             .strip_prefix(&self.src_root)
-            .unwrap()
+            .unwrap_or_else(|_| entry.path())
             .to_owned()
     }
 }
@@ -79,8 +79,9 @@ impl CollectedPath {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::test_utils::read_as_str;
+    use crate::test_utils::read_to_string;
     use crate::test_utils::tempdir;
     use crate::test_utils::write_to;
 
@@ -101,7 +102,7 @@ mod tests {
         sut.copy()?;
         assert!(to.exists());
 
-        let contents = read_as_str(to);
+        let contents = read_to_string(to);
         assert_eq!("some-file", contents);
 
         Ok(())
