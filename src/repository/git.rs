@@ -33,14 +33,14 @@ impl Git {
         }
     }
 
-    pub fn open_or_clone(&self, url: &str, refname: &str, repository_path: &Path) -> Result<()> {
+    pub fn open_or_clone(url: &str, refname: &str, repository_path: &Path) -> Result<()> {
         if Repository::open(repository_path).is_ok() {
             Ok(())
         } else {
             if remove_dir_all(repository_path).is_ok() {
                 create_dir_all(repository_path)?;
             }
-            match self.clone(url, refname, repository_path) {
+            match Git::clone(url, refname, repository_path) {
                 Ok(_) => Ok(()),
                 Err(err) => Err(format_err!(
                     "cannot load git repository from {path}: {err}",
@@ -51,10 +51,10 @@ impl Git {
         }
     }
 
-    pub fn clone(&self, url: &str, refname: &str, dst: &Path) -> Result<Repository> {
+    pub fn clone(url: &str, refname: &str, dst: &Path) -> Result<Repository> {
         info!("cloning {}...", url);
 
-        let fetch_options = self.get_fetch_options()?;
+        let fetch_options = Self::get_fetch_options()?;
         match RepoBuilder::new()
             .branch(refname)
             .fetch_options(fetch_options)
@@ -86,13 +86,13 @@ impl Git {
         Ok(())
     }
 
-    pub fn fetch(&self, repository_path: &Path, refname: &str) -> Result<()> {
+    pub fn fetch(repository_path: &Path, refname: &str) -> Result<()> {
         let repository = Repository::open(repository_path)?;
         let origin_refname = format!("origin/{refname}");
         if let Err(err) = repository.find_branch(&origin_refname, BranchType::Remote) {
             return Err(format_err!("cannot find refname '{refname}': {err}"));
         }
-        let mut fo = self.get_fetch_options()?;
+        let mut fo = Self::get_fetch_options()?;
         repository
             .find_remote("origin")?
             .fetch(&[refname], Some(&mut fo), None)?;
@@ -107,8 +107,7 @@ impl Git {
         Ok(())
     }
 
-    #[allow(clippy::unused_self)]
-    fn get_fetch_options(&self) -> Result<FetchOptions> {
+    fn get_fetch_options<'cb>() -> Result<FetchOptions<'cb>> {
         let config = match Config::open_default() {
             Ok(it) => it,
             Err(err) => {

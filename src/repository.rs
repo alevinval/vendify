@@ -12,15 +12,12 @@ mod git;
 
 pub struct Repository {
     path: PathBuf,
-    git: Git,
 }
 
 impl Repository {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        let git = Git {};
         Self {
             path: path.as_ref().to_owned(),
-            git,
         }
     }
 
@@ -33,7 +30,7 @@ impl Repository {
     }
 
     pub fn fetch(&self, refname: &str) -> Result<()> {
-        self.git.fetch(&self.path, refname)
+        Git::fetch(&self.path, refname)
     }
 
     pub fn reset(&self, refname: &str) -> Result<()> {
@@ -45,7 +42,7 @@ impl Repository {
     }
 
     pub fn ensure(self, dep: &Dependency) -> Result<Self> {
-        let result = self.git.open_or_clone(&dep.url, &dep.refname, &self.path);
+        let result = Git::open_or_clone(&dep.url, &dep.refname, &self.path);
 
         match result {
             Ok(_) => Ok(self),

@@ -75,14 +75,15 @@ mod tests {
 
     use super::*;
     use crate::test_utils::build_preset;
+    use crate::test_utils::TestContext;
 
     #[test]
     #[allow(unused_must_use)]
     fn test_cache_clean_and_ensure() {
-        let preset = &build_preset();
-        let sut = Cache::new(preset);
+        let context = &TestContext::new();
+        let sut = Cache::new(&context.preset);
 
-        let root: &PathBuf = &preset.cache().into();
+        let root: &PathBuf = &context.preset.cache().into();
         let repos = root.join("repos");
         let locks = root.join("locks");
 
