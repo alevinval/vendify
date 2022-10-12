@@ -6,6 +6,7 @@ mod control;
 mod deps;
 mod filters;
 mod installer;
+mod lock;
 pub mod preset;
 mod repository;
 mod spec;

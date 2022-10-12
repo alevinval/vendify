@@ -2,12 +2,14 @@ use std::fs::create_dir_all;
 use std::fs::remove_dir_all;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::format_err;
 use anyhow::Result;
 use sha2::Digest;
 
 use crate::deps::Dependency;
+use crate::lock::Lock;
 use crate::preset::Preset;
 use crate::repository::Repository;
 
@@ -33,6 +35,16 @@ impl Cache {
             .map_err(|err| format_err!("cannot create locks directory: {err}"))?;
 
         Ok(())
+    }
+
+    pub fn lock(&self) -> Result<Lock> {
+        let path = self.path.join(".LOCK");
+        let mut lock = Lock::new(path).with_warn(
+            "Cannot acquire cache lock, are yoy running a different instance in parallel?",
+            Duration::from_secs(1),
+        );
+        lock.acquire()?;
+        Ok(lock)
     }
 
     pub fn clean(&self) -> Result<()> {

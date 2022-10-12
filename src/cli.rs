@@ -14,7 +14,6 @@ mod structs;
 
 pub fn run() {
     let cli = Cli::parse();
-
     setup_logging(cli.debug);
 
     let preset = Preset::new();
