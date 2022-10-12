@@ -88,9 +88,6 @@ impl<'a> Importer<'a> {
 
     fn get_locked_dependency(&self) -> Result<LockedDependency> {
         let refname = self.repository.get_current_refname()?;
-        Ok(LockedDependency::new(
-            &self.dependency.url,
-            &refname.to_string(),
-        ))
+        Ok(self.dependency.to_locked_dependency(&refname))
     }
 }

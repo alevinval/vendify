@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use anyhow::format_err;
 use anyhow::Result;
-use git2::Oid;
 
 use self::git::Git;
 use crate::deps::Dependency;
@@ -37,8 +36,8 @@ impl Repository {
         Git::reset(&self.path, refname)
     }
 
-    pub fn get_current_refname(&self) -> Result<Oid> {
-        Git::get_current_refname(&self.path)
+    pub fn get_current_refname(&self) -> Result<String> {
+        Git::get_current_refname(&self.path).map(|oid| oid.to_string())
     }
 
     pub fn ensure(self, dep: &Dependency) -> Result<Self> {

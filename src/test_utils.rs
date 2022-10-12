@@ -55,7 +55,7 @@ pub fn build_preset_with_fs(temp_dir: &TempDir) -> Arc<Preset> {
     )
 }
 
-fn preset_builder() -> Builder {
+pub fn preset_builder() -> Builder {
     let mut filters = Filters::new();
     filters
         .add_targets(&svec!("global/target/a"))

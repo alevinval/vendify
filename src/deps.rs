@@ -32,6 +32,10 @@ impl Dependency {
         }
     }
 
+    pub fn to_locked_dependency(&self, refname: &str) -> LockedDependency {
+        LockedDependency::new(&self.url, refname)
+    }
+
     /// Updates the values, taken from another dependency.
     pub fn update_from(&mut self, other: &Dependency) -> &Self {
         self.refname = other.refname.clone();
@@ -61,6 +65,51 @@ impl LockedDependency {
 mod tests {
 
     use super::*;
+    use crate::svec;
+    use crate::test_utils::build_preset;
+    use crate::test_utils::preset_builder;
+
+    fn get_dep_filters() -> Filters {
+        let mut filters = Filters::new();
+        filters
+            .add_targets(&svec!("some-target"))
+            .add_ignores(&svec!("some-ignore"))
+            .add_extensions(&svec!("some-ext"));
+        filters
+    }
+
+    #[test]
+    fn test_dependency_apply_preset_without_force_filters() {
+        let preset = &build_preset();
+        let sut = &mut Dependency::new("some-url", "some-refname");
+        sut.filters = get_dep_filters();
+
+        let mut expected = sut.filters.clone();
+        expected.merge(&preset.dependency_filters(sut));
+        assert_ne!(expected, sut.filters);
+        sut.apply_preset(preset);
+        assert_eq!(expected, sut.filters);
+    }
+
+    #[test]
+    fn test_dependency_apply_preset_with_force_filters() {
+        let preset = &preset_builder().force_filters(true).build();
+        let sut = &mut Dependency::new("some-url", "some-refname");
+        sut.filters = get_dep_filters();
+
+        assert_ne!(preset.dependency_filters(sut), sut.filters);
+        sut.apply_preset(preset);
+        assert_eq!(preset.dependency_filters(sut), sut.filters);
+    }
+
+    #[test]
+    fn test_dependency_to_locked_dependency() {
+        let sut = Dependency::new("some-url", "some-refname");
+        let locked = sut.to_locked_dependency("other-refname");
+
+        assert_eq!(sut.url, locked.url);
+        assert_eq!("other-refname", locked.refname);
+    }
 
     #[test]
     fn test_dependency_update_from() {
