@@ -1,4 +1,5 @@
 version: 0.1.0
+preset: default
 vendor: vendor
 targets:
 - pkg/proto

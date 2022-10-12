@@ -13,16 +13,20 @@ use crate::VERSION;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Spec {
-    /// Version that was used to generate the spec
+    /// Version that was used to generate the spec.
     pub version: String,
 
-    /// Vendor directory path
+    // Name of the preset used to generate this spec file.
+    #[serde(default, rename = "preset")]
+    preset_name: String,
+
+    /// Vendor directory path.
     pub vendor: String,
 
     #[serde(flatten)]
     pub filters: Filters,
 
-    /// List of dependencies
+    /// List of dependencies.
     pub deps: Vec<Dependency>,
 
     #[serde(skip)]
@@ -31,11 +35,12 @@ pub struct Spec {
 
 impl Spec {
     pub fn with_preset(preset: Arc<Preset>) -> Self {
-        let mut spec = Spec {
+        let mut spec = Self {
             version: VERSION.to_string(),
             vendor: String::new(),
             filters: Filters::new(),
             deps: vec![],
+            preset_name: preset.name().into(),
             preset,
         };
         spec.apply_preset(spec.preset.clone());
@@ -52,7 +57,7 @@ impl Spec {
     }
 
     pub fn load_from(preset: Arc<Preset>) -> Result<Self> {
-        let mut spec: Spec = yaml::load(preset.spec())?;
+        let mut spec: Self = yaml::load(preset.spec())?;
         spec.apply_preset(preset);
         Ok(spec)
     }
@@ -81,6 +86,7 @@ impl Spec {
         self.deps.iter_mut().for_each(|dep| {
             dep.apply_preset(&preset);
         });
+        self.preset_name = preset.name().into();
         self.preset = preset;
     }
 
@@ -111,6 +117,7 @@ mod tests {
         assert_eq!("vendor", sut.vendor, "should have default vendor folder");
         assert_eq!(Filters::new(), sut.filters, "should have empty filters");
         assert_eq!(0, sut.deps.len(), "should have no deps");
+        assert_eq!("default", sut.preset_name);
         assert_eq!(
             &Preset::default(),
             sut.preset.as_ref(),
@@ -141,6 +148,7 @@ mod tests {
             sut.deps[0].filters,
             "should have dependency filters applied"
         );
+        assert_eq!("test-preset", sut.preset_name);
         assert_eq!(*preset, *sut.preset, "should use the provided preset");
     }
 

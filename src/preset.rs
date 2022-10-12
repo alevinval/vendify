@@ -42,8 +42,8 @@ impl fmt::Debug for Preset {
             .field("cache", &self.cache)
             .field("spec", &self.spec)
             .field("spec_lock", &self.spec_lock)
-            .field("spec_filters", &self.spec_filters)
             .field("force_filters", &self.force_filters)
+            .field("spec_filters", &self.spec_filters)
             .finish()
     }
 }
