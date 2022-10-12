@@ -24,15 +24,15 @@ pub struct LockedDependency {
 impl Dependency {
     /// Creates a new dependency configuration, uses sane default values, which
     /// come pre-configured for working with proto files.
-    pub fn new(url: &str, refname: &str) -> Self {
+    pub fn new(url: impl Into<String>, refname: impl Into<String>) -> Self {
         Self {
-            url: url.to_string(),
-            refname: refname.to_string(),
+            url: url.into(),
+            refname: refname.into(),
             filters: Filters::new(),
         }
     }
 
-    pub fn to_locked_dependency(&self, refname: &str) -> LockedDependency {
+    pub fn to_locked_dependency(&self, refname: impl Into<String>) -> LockedDependency {
         LockedDependency::new(&self.url, refname)
     }
 
@@ -53,10 +53,10 @@ impl Dependency {
 }
 
 impl LockedDependency {
-    pub fn new(url: &str, refname: &str) -> Self {
+    pub fn new(url: impl Into<String>, refname: impl Into<String>) -> Self {
         Self {
-            url: url.to_string(),
-            refname: refname.to_string(),
+            url: url.into(),
+            refname: refname.into(),
         }
     }
 }
