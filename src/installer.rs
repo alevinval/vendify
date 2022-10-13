@@ -79,6 +79,7 @@ impl Installer {
     }
 
     fn inner_install(&self, dependency: &Dependency) -> Result<LockedDependency> {
+        let _repository_lock = self.cache.lock_repository(dependency)?;
         let repository = self.cache.get_repository(dependency)?;
         let spec = self.spec.read().unwrap();
         let spec_lock = self.spec_lock.read().unwrap();
@@ -89,6 +90,7 @@ impl Installer {
     }
 
     fn inner_update(&self, dependency: &Dependency) -> Result<LockedDependency> {
+        let _repository_lock = self.cache.lock_repository(dependency)?;
         let repository = self.cache.get_repository(dependency)?;
         let spec = self.spec.read().unwrap();
         let importer = Importer::new(&spec, dependency, None, &repository);

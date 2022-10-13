@@ -47,6 +47,13 @@ impl Cache {
         Ok(lock)
     }
 
+    pub fn lock_repository(&self, dep: &Dependency) -> Result<Lock> {
+        let path = self.get_repository_lock_path(dep);
+        let mut lock = Lock::new(path);
+        lock.acquire()?;
+        Ok(lock)
+    }
+
     pub fn clean(&self) -> Result<()> {
         remove_dir_all(&self.path)
             .map_err(|err| format_err!("cannot remove cache directory: {err}"))?;
