@@ -30,7 +30,7 @@ pub struct Installer {
 
 impl Installer {
     pub fn new(cache: Cache, spec: Arc<RwLock<Spec>>, spec_lock: Arc<RwLock<SpecLock>>) -> Self {
-        Installer {
+        Self {
             cache,
             spec,
             spec_lock,
@@ -50,7 +50,6 @@ impl Installer {
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
         let deps = &self.spec.read().unwrap().deps;
-
         thread::scope(|s| {
             let mut handles: Vec<ScopedJoinHandle<Result<LockedDependency>>> = vec![];
 

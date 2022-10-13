@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::Parser;
 use simplelog::ColorChoice;
 use simplelog::ConfigBuilder;
@@ -12,7 +13,12 @@ use crate::preset::Preset;
 
 mod structs;
 
-pub fn run() {
+/// Entry point to run the vendify CLI
+///
+/// # Errors
+///
+/// Will return `Err` if the operation has not succeeded.
+pub fn run() -> Result<()> {
     let cli = Cli::parse();
     setup_logging(cli.debug);
 
@@ -27,9 +33,10 @@ pub fn run() {
             targets,
             ignores,
         } => controller.add(&url, &refname, extensions, targets, ignores),
-        Commands::Install {} => controller.install(),
-        Commands::Update {} => controller.update(),
+        Commands::Install {} => controller.install()?,
+        Commands::Update {} => controller.update()?,
     };
+    Ok(())
 }
 
 fn setup_logging(is_debug: bool) {
