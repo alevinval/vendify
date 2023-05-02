@@ -87,6 +87,7 @@ impl Selector {
 mod tests {
 
     use super::*;
+    use crate::filters::FilterKind;
     use crate::svec;
 
     macro_rules! assert_selection {
@@ -105,15 +106,15 @@ mod tests {
     fn test_selector_combines_filters() {
         let spec = &mut Spec::new();
         spec.filters
-            .add_targets(&svec!["a"])
-            .add_ignores(&svec!["b"])
-            .add_extensions(&svec!["c"]);
+            .add(FilterKind::Target(svec!["a"]))
+            .add(FilterKind::Ignore(svec!["b"]))
+            .add(FilterKind::Extension(svec!["c"]));
 
         let dep = &mut Dependency::new("some-url", "some-branch");
         dep.filters
-            .add_targets(&svec!["1"])
-            .add_ignores(&svec!["2"])
-            .add_extensions(&svec!["3"]);
+            .add(FilterKind::Target(svec!["1"]))
+            .add(FilterKind::Ignore(svec!["2"]))
+            .add(FilterKind::Extension(svec!["3"]));
 
         let sut = &Selector::new(spec, dep);
 
@@ -127,9 +128,9 @@ mod tests {
     fn test_selector_with_targets() {
         let filters = &mut Filters::new();
         filters
-            .add_targets(&svec!["target/a", "readme.md"])
-            .add_ignores(&svec!["ignored/a", "target/a/ignored"])
-            .add_extensions(&svec!["proto"]);
+            .add(FilterKind::Target(svec!["target/a", "readme.md"]))
+            .add(FilterKind::Ignore(svec!["ignored/a", "target/a/ignored"]))
+            .add(FilterKind::Extension(svec!["proto"]));
 
         let sut = Selector {
             filters: filters.clone(),
@@ -148,8 +149,8 @@ mod tests {
     fn test_selector_without_targets() {
         let filters = &mut Filters::new();
         filters
-            .add_ignores(&svec!["ignored/a", "target/a/ignored"])
-            .add_extensions(&svec!["proto"]);
+            .add(FilterKind::Ignore(svec!["ignored/a", "target/a/ignored"]))
+            .add(FilterKind::Extension(svec!["proto"]));
 
         let sut = Selector {
             filters: filters.clone(),

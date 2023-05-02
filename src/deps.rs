@@ -65,6 +65,7 @@ impl LockedDependency {
 mod tests {
 
     use super::*;
+    use crate::filters::FilterKind;
     use crate::svec;
     use crate::test_utils::build_preset;
     use crate::test_utils::preset_builder;
@@ -72,9 +73,9 @@ mod tests {
     fn get_dep_filters() -> Filters {
         let mut filters = Filters::new();
         filters
-            .add_targets(&svec!("some-target"))
-            .add_ignores(&svec!("some-ignore"))
-            .add_extensions(&svec!("some-ext"));
+            .add(FilterKind::Target(svec!["some-target"]))
+            .add(FilterKind::Ignore(svec!["some-ignore"]))
+            .add(FilterKind::Extension(svec!["some-ext"]));
         filters
     }
 
@@ -116,16 +117,16 @@ mod tests {
         let mut original = Dependency::new("url-a", "refname-a");
         original
             .filters
-            .add_extensions(&["a".into()])
-            .add_targets(&["b".into()])
-            .add_ignores(&["c".into()]);
+            .add(FilterKind::Extension(svec!["a"]))
+            .add(FilterKind::Target(svec!["b"]))
+            .add(FilterKind::Ignore(svec!["c"]));
 
         let mut other = Dependency::new("url-b", "refname-b");
         other
             .filters
-            .add_extensions(&["1".into()])
-            .add_targets(&["2".into()])
-            .add_ignores(&["3".into()]);
+            .add(FilterKind::Extension(svec!["1"]))
+            .add(FilterKind::Target(svec!["2"]))
+            .add(FilterKind::Ignore(svec!["3"]));
 
         let mut actual = original.clone();
         actual.update_from(&other);

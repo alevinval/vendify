@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 use crate::deps::Dependency;
+use crate::filters::FilterKind;
 use crate::filters::Filters;
 use crate::preset::Builder;
 use crate::preset::Preset;
@@ -58,16 +59,16 @@ pub fn build_preset_with_fs(temp_dir: &TempDir) -> Arc<Preset> {
 pub fn preset_builder() -> Builder {
     let mut filters = Filters::new();
     filters
-        .add_targets(&svec!("global/target/a"))
-        .add_ignores(&svec!("global/ignore/a"))
-        .add_extensions(&svec!("txt"));
+        .add(FilterKind::Target(svec!("global/target/a")))
+        .add(FilterKind::Ignore(svec!("global/ignore/a")))
+        .add(FilterKind::Extension(svec!("txt")));
 
     let dependency_filters = |_dep: &Dependency| {
         let mut filters = Filters::new();
         filters
-            .add_targets(&svec!("dep/target/a"))
-            .add_ignores(&svec!("dep/ignore/a"))
-            .add_extensions(&svec!("md"));
+            .add(FilterKind::Target(svec!("dep/target/a")))
+            .add(FilterKind::Ignore(svec!("dep/ignore/a")))
+            .add(FilterKind::Extension(svec!("md")));
         filters
     };
 

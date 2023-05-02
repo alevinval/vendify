@@ -16,6 +16,12 @@ pub struct Filters {
     pub extensions: Vec<String>,
 }
 
+pub enum FilterKind {
+    Target(Vec<String>),
+    Ignore(Vec<String>),
+    Extension(Vec<String>),
+}
+
 impl Filters {
     pub fn new() -> Self {
         Self {
@@ -25,31 +31,19 @@ impl Filters {
         }
     }
 
-    pub fn add_targets(&mut self, targets: &[String]) -> &mut Self {
-        self.targets.extend(targets.to_vec());
-        self.targets.sort();
-        self.targets.dedup();
-        self
-    }
-
-    pub fn add_ignores(&mut self, ignores: &[String]) -> &mut Self {
-        self.ignores.extend(ignores.to_vec());
-        self.ignores.sort();
-        self.ignores.dedup();
-        self
-    }
-
-    pub fn add_extensions(&mut self, extension: &[String]) -> &mut Self {
-        self.extensions.extend(extension.to_vec());
-        self.extensions.sort();
-        self.extensions.dedup();
+    pub fn add(&mut self, element: FilterKind) -> &mut Self {
+        match element {
+            FilterKind::Target(target) => Self::extend(&mut self.targets, &target),
+            FilterKind::Ignore(ignore) => Self::extend(&mut self.ignores, &ignore),
+            FilterKind::Extension(extension) => Self::extend(&mut self.extensions, &extension),
+        };
         self
     }
 
     pub fn merge(&mut self, other: &Filters) -> &mut Self {
-        self.add_targets(&other.targets)
-            .add_ignores(&other.ignores)
-            .add_extensions(&other.extensions)
+        self.add(FilterKind::Target(other.targets.clone()))
+            .add(FilterKind::Ignore(other.ignores.clone()))
+            .add(FilterKind::Extension(other.extensions.clone()))
     }
 
     pub fn clear(&mut self) -> &mut Self {
@@ -57,6 +51,12 @@ impl Filters {
         self.ignores.clear();
         self.extensions.clear();
         self
+    }
+
+    fn extend(target: &mut Vec<String>, elems: &[String]) {
+        target.extend(elems.to_vec());
+        target.sort();
+        target.dedup();
     }
 }
 
@@ -89,7 +89,7 @@ mod tests {
         let input = &get_input();
         let sut = &mut Filters::new();
 
-        sut.add_targets(input);
+        sut.add(FilterKind::Target(input.clone()));
 
         assert_eq!(
             get_expected(input),
@@ -103,7 +103,7 @@ mod tests {
         let input = &get_input();
         let sut = &mut Filters::new();
 
-        sut.add_ignores(input);
+        sut.add(FilterKind::Ignore(input.clone()));
 
         assert_eq!(
             get_expected(input),
@@ -117,7 +117,7 @@ mod tests {
         let input = &get_input();
         let sut = &mut Filters::new();
 
-        sut.add_extensions(input);
+        sut.add(FilterKind::Extension(input.clone()));
 
         assert_eq!(
             get_expected(input),
@@ -128,11 +128,11 @@ mod tests {
 
     #[test]
     fn test_filters_clear() {
-        let input = &get_input();
+        let input = get_input();
         let sut = &mut Filters::new();
-        sut.add_targets(input)
-            .add_ignores(input)
-            .add_extensions(input);
+        sut.add(FilterKind::Target(input.clone()))
+            .add(FilterKind::Ignore(input.clone()))
+            .add(FilterKind::Extension(input));
 
         sut.clear();
 
@@ -145,11 +145,14 @@ mod tests {
     fn test_filters_merge() {
         let input = &get_input();
         let sut = &mut Filters::new();
-        sut.add_targets(input).add_ignores(input);
+        sut.add(FilterKind::Target(input.clone()))
+            .add(FilterKind::Ignore(input.clone()));
 
         let extra = &svec!["extra"];
         let other = &mut Filters::new();
-        other.add_targets(extra).add_extensions(input);
+        other
+            .add(FilterKind::Target(extra.clone()))
+            .add(FilterKind::Extension(input.clone()));
 
         sut.merge(other);
 

@@ -12,6 +12,7 @@ use super::installer::Installer;
 use super::spec::Spec;
 use super::spec_lock::SpecLock;
 use crate::cache::Cache;
+use crate::filters::FilterKind;
 use crate::preset::Preset;
 
 type SharedSpec = Arc<RwLock<Spec>>;
@@ -64,13 +65,13 @@ impl Controller {
 
         let mut dep = Dependency::new(url, refname);
         if let Some(extensions) = extensions {
-            dep.filters.add_extensions(&extensions);
+            dep.filters.add(FilterKind::Extension(extensions));
         }
         if let Some(targets) = targets {
-            dep.filters.add_targets(&targets);
+            dep.filters.add(FilterKind::Target(targets));
         }
         if let Some(ignores) = ignores {
-            dep.filters.add_ignores(&ignores);
+            dep.filters.add(FilterKind::Ignore(ignores));
         }
         spec.add_dependency(dep);
 

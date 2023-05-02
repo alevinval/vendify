@@ -1,3 +1,3 @@
 fn main() {
-    _ = vendify::cli::run()
+    _ = vendify::cli::run();
 }
