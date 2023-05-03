@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use log::debug;
@@ -16,6 +16,7 @@ pub struct Importer<'a> {
     dependency_lock: Option<&'a LockedDependency>,
     repository: &'a Repository,
     collector: Collector,
+    to: PathBuf,
 }
 
 impl<'a> Importer<'a> {
@@ -25,15 +26,14 @@ impl<'a> Importer<'a> {
         dependency_lock: Option<&'a LockedDependency>,
         repository: &'a Repository,
     ) -> Self {
+        let mut combined_filters = spec.filters.clone();
+        combined_filters.merge(&dependency.filters);
         Self {
             dependency,
             dependency_lock,
             repository,
-            collector: Collector::new(
-                &repository.path(),
-                &Path::new(&spec.vendor),
-                Selector::new(spec, dependency),
-            ),
+            collector: Selector::from(combined_filters).into(),
+            to: PathBuf::from(&spec.vendor),
         }
     }
 
@@ -68,13 +68,13 @@ impl<'a> Importer<'a> {
     }
 
     fn copy_files(&self) -> Result<()> {
-        for collected in self.collector.iter() {
+        for collected in self.collector.collect(&self.repository.path()) {
             debug!(
                 "\t.../{} -> {}",
                 collected.src_rel.display(),
-                collected.dst.display()
+                self.to.join(&collected.src_rel).display()
             );
-            collected.copy()?;
+            collected.copy(&self.to)?;
         }
         Ok(())
     }
