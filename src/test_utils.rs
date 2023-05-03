@@ -33,8 +33,9 @@ pub fn write_to<P: AsRef<Path>>(dst: P, data: &str) {
     }
 }
 
-pub fn read_to_string<P: AsRef<Path>>(src: P) -> String {
-    fs::read_to_string(src).expect("cannot read path {src}")
+pub fn read_to_string<P: AsRef<Path>>(src: &P) -> String {
+    fs::read_to_string(src)
+        .unwrap_or_else(|_| panic!("cannot read path {}", src.as_ref().display()))
 }
 
 pub fn build_preset() -> Arc<Preset> {

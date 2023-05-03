@@ -1,71 +1,103 @@
 use std::path::Path;
 
-use crate::deps::Dependency;
 use crate::filters::Filters;
-use crate::spec::Spec;
 
+/// Selects file or directory paths depending on whether the paths are allowed
+/// based on the provided filters.
 pub struct Selector {
     filters: Filters,
 }
 
 impl Selector {
-    pub fn new(spec: &Spec, dependency: &Dependency) -> Self {
-        Self {
-            filters: spec.filters.clone().merge(&dependency.filters).clone(),
-        }
+    pub fn from(filters: Filters) -> Self {
+        Self { filters }
     }
 
-    pub fn select_path<P: AsRef<Path>>(&self, path: P) -> bool {
+    /// Returns whether the path should be selected based on the filters.
+    ///
+    /// If the filepath is ignored, do not select
+    /// If the filepath is a target, and has allowed extension, then select.
+    pub fn select_file<P: AsRef<Path>>(&self, path: P) -> bool {
         let path = path.as_ref();
         !self.is_ignored(path) && self.is_target(path) && self.is_extension(path)
     }
 
+    /// Returns whether the directory path should be selected based on the
+    /// filters.
+    ///
+    /// All the target paths have to be compared against the current candidate
+    /// directory path. Because we are running a recursive traversal from a root
+    /// directory, filters might be targeting a path like `a/b`, but the
+    /// traversal begins on directory `a`, then `a/b/`, and finally `a/b/c`
+    ///
+    /// When selecting directories, we must check if...
+    ///
+    ///  1) Any target path contains the current candidate as prefix
+    ///     eg. 'a/' dir should be selected, because `a/b` is a target
+    ///
+    ///  2) If the current candidate contains as a prefix any of the targets
+    ///     eg. `a/b/c` dir should be selected, because `a/b` is target
     pub fn select_dir<P: AsRef<Path>>(&self, dir: P) -> bool {
         let dir = dir.as_ref();
+
+        // We want the Collector to traverse the root directory with respect
+        // to the root path, this might result in an empty relative path, thus
+        // always select it.
         if dir.as_os_str().is_empty() {
             return true;
         }
+
         !self.is_ignored(dir)
             && (self.filters.targets.is_empty()
                 || Self::inverse_has_prefix(
                     &self.filters.targets,
-                    &dir.to_path_buf().into_os_string().into_string().unwrap(),
+                    &dir.to_path_buf()
+                        .into_os_string()
+                        .into_string()
+                        .unwrap_or(String::new()),
                 ))
     }
 
+    /// Returns if the path is targeted.
+    ///
+    /// If there are no explicit targets, everything is a target.
     fn is_target(&self, path: &Path) -> bool {
         self.filters
             .targets
             .iter()
-            .any(|target| Self::starts_with(path, target))
+            .any(|target| path.starts_with(target))
             || self.filters.targets.is_empty()
     }
 
+    /// Returns if the path is ignored.
     fn is_ignored(&self, path: &Path) -> bool {
         self.filters
             .ignores
             .iter()
-            .any(|ignore| Self::starts_with(path, ignore))
+            .any(|ignore| path.starts_with(ignore))
     }
 
+    /// Returns if the path contains a targeted extension.
+    ///
+    /// If the path contains no extension, then we return true in case
+    /// that the candidate path exactly matches any of the targets.
     fn is_extension(&self, path: &Path) -> bool {
         if let Some(ext) = path.extension() {
             self.filters
                 .extensions
                 .iter()
                 .any(|target| ext.eq_ignore_ascii_case(target))
-                || self.is_perfect_match(path)
+                || self.is_exact_target(path)
         } else {
-            self.is_perfect_match(path)
+            self.is_exact_target(path)
         }
     }
 
-    fn is_perfect_match(&self, path: &Path) -> bool {
+    fn is_exact_target(&self, path: &Path) -> bool {
         self.filters
             .targets
             .iter()
-            .map(Path::new)
-            .any(|target| path == target)
+            .any(|target| path.to_string_lossy().eq_ignore_ascii_case(target))
     }
 
     fn inverse_has_prefix(paths: &[String], prefix: &String) -> bool {
@@ -76,10 +108,6 @@ impl Selector {
                 path.starts_with(prefix)
             }
         })
-    }
-
-    fn starts_with(path: &Path, prefix: &str) -> bool {
-        path.starts_with(prefix)
     }
 }
 
@@ -103,65 +131,39 @@ mod tests {
     }
 
     #[test]
-    fn test_selector_combines_filters() {
-        let spec = &mut Spec::new();
-        spec.filters
-            .add(FilterKind::Target(svec!["a"]))
-            .add(FilterKind::Ignore(svec!["b"]))
-            .add(FilterKind::Extension(svec!["c"]));
-
-        let dep = &mut Dependency::new("some-url", "some-branch");
-        dep.filters
-            .add(FilterKind::Target(svec!["1"]))
-            .add(FilterKind::Ignore(svec!["2"]))
-            .add(FilterKind::Extension(svec!["3"]));
-
-        let sut = &Selector::new(spec, dep);
-
-        assert_eq!(
-            spec.filters.clone().merge(&dep.filters).clone(),
-            sut.filters,
-        );
-    }
-
-    #[test]
     fn test_selector_with_targets() {
-        let filters = &mut Filters::new();
+        let mut filters = Filters::new();
         filters
             .add(FilterKind::Target(svec!["target/a", "readme.md"]))
             .add(FilterKind::Ignore(svec!["ignored/a", "target/a/ignored"]))
             .add(FilterKind::Extension(svec!["proto"]));
 
-        let sut = Selector {
-            filters: filters.clone(),
-        };
+        let sut = Selector { filters };
 
-        assert_selection!(sut.select_path("target/a/file.proto"));
-        assert_selection!(sut.select_path("readme.md"));
+        assert_selection!(sut.select_file("target/a/file.proto"));
+        assert_selection!(sut.select_file("readme.md"));
 
-        assert_no_selection!(sut.select_path("target/a/file.txt"));
-        assert_no_selection!(sut.select_path("target/a/ignored/file.proto"));
-        assert_no_selection!(sut.select_path("target/noextension"));
-        assert_no_selection!(sut.select_path("ignored/a/file.proto"));
+        assert_no_selection!(sut.select_file("target/a/file.txt"));
+        assert_no_selection!(sut.select_file("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select_file("target/noextension"));
+        assert_no_selection!(sut.select_file("ignored/a/file.proto"));
     }
 
     #[test]
     fn test_selector_without_targets() {
-        let filters = &mut Filters::new();
+        let mut filters = Filters::new();
         filters
             .add(FilterKind::Ignore(svec!["ignored/a", "target/a/ignored"]))
             .add(FilterKind::Extension(svec!["proto"]));
 
-        let sut = Selector {
-            filters: filters.clone(),
-        };
+        let sut = Selector { filters };
 
-        assert_selection!(sut.select_path("target/a/file.proto"));
+        assert_selection!(sut.select_file("target/a/file.proto"));
 
-        assert_no_selection!(sut.select_path("readme.md"));
-        assert_no_selection!(sut.select_path("target/a/file.txt"));
-        assert_no_selection!(sut.select_path("target/a/ignored/file.proto"));
-        assert_no_selection!(sut.select_path("target/noextension"));
-        assert_no_selection!(sut.select_path("ignored/a/file.proto"));
+        assert_no_selection!(sut.select_file("readme.md"));
+        assert_no_selection!(sut.select_file("target/a/file.txt"));
+        assert_no_selection!(sut.select_file("target/a/ignored/file.proto"));
+        assert_no_selection!(sut.select_file("target/noextension"));
+        assert_no_selection!(sut.select_file("ignored/a/file.proto"));
     }
 }
