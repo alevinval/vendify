@@ -1,3 +1,5 @@
-fn main() {
-    _ = vendify::cli::run();
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    vendify::cli::run()
 }

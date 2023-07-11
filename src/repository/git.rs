@@ -40,7 +40,7 @@ impl Git {
             if remove_dir_all(repository_path).is_ok() {
                 create_dir_all(repository_path)?;
             }
-            match Git::clone(url, refname, repository_path) {
+            match Self::clone(url, refname, repository_path) {
                 Ok(_) => Ok(()),
                 Err(err) => Err(format_err!(
                     "cannot load git repository from {path}: {err}",
@@ -74,9 +74,9 @@ impl Git {
         repository.checkout_tree(&object, None)?;
         match reference {
             Some(reference) => {
-                let name = reference
-                    .name()
-                    .expect("invalid reference, contains non-utf8 characters");
+                let name = reference.name().ok_or_else(|| {
+                    format_err!("invalid reference, contains non-utf8 characters")
+                })?;
                 repository.set_head(name)?;
             }
             None => {

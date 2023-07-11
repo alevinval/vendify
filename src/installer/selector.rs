@@ -82,15 +82,16 @@ impl Selector {
     /// If the path contains no extension, then we return true in case
     /// that the candidate path exactly matches any of the targets.
     fn is_extension(&self, path: &Path) -> bool {
-        if let Some(ext) = path.extension() {
-            self.filters
-                .extensions
-                .iter()
-                .any(|target| ext.eq_ignore_ascii_case(target))
-                || self.is_exact_target(path)
-        } else {
-            self.is_exact_target(path)
-        }
+        path.extension().map_or_else(
+            || self.is_exact_target(path),
+            |ext| {
+                self.filters
+                    .extensions
+                    .iter()
+                    .any(|target| ext.eq_ignore_ascii_case(target))
+                    || self.is_exact_target(path)
+            },
+        )
     }
 
     fn is_exact_target(&self, path: &Path) -> bool {

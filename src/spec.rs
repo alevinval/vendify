@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -30,20 +29,20 @@ pub struct Spec {
     pub deps: Vec<Dependency>,
 
     #[serde(skip)]
-    preset: Arc<Preset>,
+    preset: Preset,
 }
 
 impl Spec {
-    pub fn with_preset(preset: Arc<Preset>) -> Self {
+    pub fn with_preset(preset: &Preset) -> Self {
         let mut spec = Self {
             version: VERSION.to_string(),
             vendor: String::new(),
             filters: Filters::new(),
             deps: vec![],
-            preset_name: preset.name().into(),
-            preset,
+            preset_name: preset.name().to_string(),
+            preset: preset.clone(),
         };
-        spec.apply_preset(spec.preset.clone());
+        spec.apply_preset();
         spec
     }
 
@@ -56,9 +55,10 @@ impl Spec {
         }
     }
 
-    pub fn load_from(preset: Arc<Preset>) -> Result<Self> {
+    pub fn load_from(preset: &Preset) -> Result<Self> {
         let mut spec: Self = yaml::load(preset.spec())?;
-        spec.apply_preset(preset);
+        spec.preset = preset.clone();
+        spec.apply_preset();
         Ok(spec)
     }
 
@@ -73,21 +73,20 @@ impl Spec {
             .find(|d| d.url.eq_ignore_ascii_case(&dep.url))
     }
 
-    fn apply_preset(&mut self, preset: Arc<Preset>) {
+    fn apply_preset(&mut self) {
         let crate_version = VERSION.to_string();
         if self.version < crate_version {
             self.version = crate_version;
         }
-        self.vendor = preset.vendor().into();
-        if preset.force_filters() {
+        self.vendor = self.preset.vendor().to_string();
+        if self.preset.force_filters() {
             self.filters.clear();
         }
-        self.filters.merge(&preset.global_filters());
+        self.filters.merge(&self.preset.global_filters());
         self.deps.iter_mut().for_each(|dep| {
-            dep.apply_preset(&preset);
+            dep.apply_preset(&self.preset);
         });
-        self.preset_name = preset.name().into();
-        self.preset = preset;
+        self.preset_name = self.preset.name().to_string();
     }
 
     fn lint(&mut self) {
@@ -98,7 +97,7 @@ impl Spec {
 
     #[cfg(test)]
     pub fn new() -> Self {
-        Self::with_preset(Preset::default().into())
+        Self::with_preset(&Preset::default())
     }
 }
 
@@ -118,18 +117,14 @@ mod tests {
         assert_eq!(Filters::new(), sut.filters, "should have empty filters");
         assert_eq!(0, sut.deps.len(), "should have no deps");
         assert_eq!("default", sut.preset_name);
-        assert_eq!(
-            &Preset::default(),
-            sut.preset.as_ref(),
-            "should use default preset"
-        );
+        assert_eq!(Preset::default(), sut.preset, "should use default preset");
     }
 
     #[test]
     fn test_spec_with_preset() {
         let preset = build_preset();
         let dep = Dependency::new("some-url", "some-refname");
-        let mut sut = Spec::with_preset(preset.clone());
+        let mut sut = Spec::with_preset(&preset);
         sut.add_dependency(dep.clone());
 
         assert_eq!(VERSION, sut.version, "should have the crate version");
@@ -149,13 +144,13 @@ mod tests {
             "should have dependency filters applied"
         );
         assert_eq!("test-preset", sut.preset_name);
-        assert_eq!(*preset, *sut.preset, "should use the provided preset");
+        assert_eq!(preset, sut.preset, "should use the provided preset");
     }
 
     #[test]
     fn test_spec_add_dependency() {
         let preset = build_preset();
-        let mut sut = Spec::with_preset(preset.clone());
+        let mut sut = Spec::with_preset(&preset);
         let mut dep = Dependency::new("some url", "some ref");
 
         sut.add_dependency(dep.clone());
@@ -167,35 +162,35 @@ mod tests {
 
     #[test]
     fn test_spec_apply_preset_updates_version() -> Result<()> {
-        let preset = &TestContext::new();
-        let mut sut = Spec::with_preset(preset.into());
+        let ctx = TestContext::new();
+        let mut sut = Spec::with_preset(&ctx.preset);
         sut.version = "0.0.0".into();
 
         sut.save()?;
 
-        let actual = Spec::load_from(preset.into())?;
+        let actual = Spec::load_from(&ctx.preset)?;
         assert_eq!(VERSION, actual.version);
         Ok(())
     }
 
     #[test]
     fn test_spec_with_preset_then_save_then_load() -> Result<()> {
-        let context = &TestContext::new();
+        let ctx = TestContext::new();
         let dep = Dependency::new("some url", "some ref");
-        let mut expected = Spec::with_preset(context.into());
+        let mut expected = Spec::with_preset(&ctx.preset);
         expected.add_dependency(dep);
 
         expected.save()?;
 
-        let actual = Spec::load_from(context.into())?;
+        let actual = Spec::load_from(&ctx.preset)?;
         assert_eq!(expected, actual);
         Ok(())
     }
 
     #[test]
     fn test_spec_cannot_load_from_non_existent_file() {
-        let context = &TestContext::new();
-        let actual = Spec::load_from(context.into());
+        let ctx = TestContext::new();
+        let actual = Spec::load_from(&ctx.preset);
         assert!(actual.is_err(), "there should be an error");
     }
 }

@@ -31,8 +31,8 @@ impl Cache {
         }
     }
 
-    /// Initializes the cache folder, making sure it exists and contains the expected
-    /// directory structure.
+    /// Initializes the cache folder, making sure it exists and contains the
+    /// expected directory structure.
     ///
     /// # Errors
     ///
@@ -47,10 +47,10 @@ impl Cache {
         Ok(())
     }
 
-    /// Returns the lock of this [`Cache`]. It will log a warning message it takes
-    /// longer than expected to acquire, as this could indicate the user is trying to run
-    /// multiple vendoring processes at the same time, which is not supported, as the cache
-    /// is shared.
+    /// Returns the lock of this [`Cache`]. It will log a warning message it
+    /// takes longer than expected to acquire, as this could indicate the
+    /// user is trying to run multiple vendoring processes at the same time,
+    /// which is not supported, as the cache is shared.
     ///
     /// # Errors
     ///
@@ -80,7 +80,8 @@ impl Cache {
     ///
     /// # Errors
     ///
-    /// This function will return an error if the cache directory cannot be removed.
+    /// This function will return an error if the cache directory cannot be
+    /// removed.
     pub fn clear(&self) -> Result<()> {
         remove_dir_all(&self.root)
             .map_err(|err| format_err!("cannot remove cache directory: {err}"))?;

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use serde::Deserialize;
 use serde::Serialize;
@@ -18,11 +16,11 @@ pub struct SpecLock {
     pub deps: Vec<LockedDependency>,
 
     #[serde(skip)]
-    preset: Arc<Preset>,
+    preset: Preset,
 }
 
 impl SpecLock {
-    pub fn with_preset(preset: Arc<Preset>) -> Self {
+    pub fn with_preset(preset: &Preset) -> Self {
         let mut lock = Self {
             version: VERSION.to_owned(),
             deps: Vec::new(),
@@ -32,8 +30,8 @@ impl SpecLock {
         lock
     }
 
-    pub fn load_from(preset: Arc<Preset>) -> Result<Self> {
-        let mut lock: SpecLock = yaml::load(preset.spec_lock())?;
+    pub fn load_from(preset: &Preset) -> Result<Self> {
+        let mut lock: Self = yaml::load(preset.spec_lock())?;
         lock.apply_preset(preset);
         Ok(lock)
     }
@@ -43,11 +41,11 @@ impl SpecLock {
         yaml::save(self, self.preset.spec_lock())
     }
 
-    pub fn apply_preset(&mut self, preset: Arc<Preset>) {
+    pub fn apply_preset(&mut self, preset: &Preset) {
         if self.version < VERSION.into() {
             self.version = VERSION.into();
         }
-        self.preset = preset;
+        self.preset = preset.clone();
     }
 
     pub fn add_locked_dependency(&mut self, dep: LockedDependency) {
@@ -79,7 +77,7 @@ impl SpecLock {
 
     #[cfg(test)]
     pub fn new() -> Self {
-        Self::with_preset(Arc::new(Preset::default()))
+        Self::with_preset(&Preset::default())
     }
 }
 
@@ -96,21 +94,17 @@ mod tests {
 
         assert_eq!(VERSION, sut.version, "should have the crate version");
         assert_eq!(0, sut.deps.len(), "should have no deps");
-        assert_eq!(
-            &Preset::default(),
-            sut.preset.as_ref(),
-            "should use default preset"
-        );
+        assert_eq!(Preset::default(), sut.preset, "should use default preset");
     }
 
     #[test]
     fn test_spec_lock_from_preset() {
         let preset = build_preset();
-        let sut = SpecLock::with_preset(preset.clone());
+        let sut = SpecLock::with_preset(&preset);
 
         assert_eq!(VERSION, sut.version, "should have the crate version");
         assert_eq!(0, sut.deps.len(), "should have no deps");
-        assert_eq!(*preset, *sut.preset, "should use the provided preset");
+        assert_eq!(preset, sut.preset, "should use the provided preset");
     }
 
     #[test]
@@ -126,13 +120,13 @@ mod tests {
 
     #[test]
     fn test_spec_lock_apply_preset_updates_version() -> Result<()> {
-        let preset = &TestContext::new();
-        let mut sut = SpecLock::with_preset(preset.into());
+        let ctx = TestContext::new();
+        let mut sut = SpecLock::with_preset(&ctx.preset);
         sut.version = "0.0.0".into();
 
         sut.save()?;
 
-        let actual = SpecLock::load_from(preset.into())?;
+        let actual = SpecLock::load_from(&ctx.preset)?;
         assert_eq!(VERSION, actual.version);
         Ok(())
     }
@@ -140,21 +134,21 @@ mod tests {
     #[test]
     fn test_spec_lock_with_preset_then_save_then_load() -> Result<()> {
         let dep = LockedDependency::new("some url", "some ref");
-        let context = &TestContext::new();
-        let mut expected = SpecLock::with_preset(context.into());
+        let ctx = &TestContext::new();
+        let mut expected = SpecLock::with_preset(&ctx.preset);
         expected.add_locked_dependency(dep);
 
         expected.save()?;
 
-        let actual = SpecLock::load_from(context.into()).expect("loaded file");
+        let actual = SpecLock::load_from(&ctx.preset).expect("loaded file");
         assert_eq!(expected, actual);
         Ok(())
     }
 
     #[test]
     fn test_spec_lock_cannot_load_from_non_existent_file() {
-        let context = &TestContext::new();
-        let actual = SpecLock::load_from(context.into());
+        let ctx = &TestContext::new();
+        let actual = SpecLock::load_from(&ctx.preset);
         assert!(actual.is_err(), "there should be an error");
     }
 }

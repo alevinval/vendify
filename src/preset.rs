@@ -8,6 +8,7 @@ use crate::filters::Filters;
 
 type DependencyFiltersProvider = fn(&Dependency) -> Filters;
 
+#[derive(Clone)]
 pub struct Preset {
     name: String,
     cache: String,
@@ -161,13 +162,13 @@ impl Builder {
 
     #[must_use]
     pub fn spec(mut self, path: &str) -> Self {
-        self.spec = path.into();
+        self.spec = path.to_string();
         self
     }
 
     #[must_use]
     pub fn spec_lock(mut self, path: &str) -> Self {
-        self.spec_lock = path.into();
+        self.spec_lock = path.to_string();
         self
     }
 
@@ -190,14 +191,15 @@ impl Builder {
     }
 
     fn default_cache() -> String {
-        let root = if let Some(home) = home::home_dir() {
-            home
-        } else {
-            warn!("Cannot find user home directory, using tempdir as home");
-            temp_dir()
-        };
-
-        root.join(".vendify")
+        home::home_dir()
+            .map_or_else(
+                || {
+                    warn!("Cannot find user home directory, using tempdir as home");
+                    temp_dir()
+                },
+                |home| home,
+            )
+            .join(".vendify")
             .into_os_string()
             .into_string()
             .unwrap_or_else(|_| ".vendify".into())
