@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 use anyhow::Result;
 use log::error;
@@ -14,9 +13,6 @@ use super::spec_lock::SpecLock;
 use crate::cache::Cache;
 use crate::filters::FilterKind;
 use crate::preset::Preset;
-
-type SharedSpec = Arc<RwLock<Spec>>;
-type SharedSpecLock = Arc<RwLock<SpecLock>>;
 
 pub struct Controller {
     preset: Arc<Preset>,
@@ -86,19 +82,17 @@ impl Controller {
     }
 
     pub fn install(&self) -> Result<()> {
-        let (spec, spec_lock) = self.load_both()?;
+        let (mut spec, spec_lock) = self.load_both()?;
         let cache = Cache::new(&self.preset);
         let _cache_lock = cache.lock();
-        let installer = Installer::new(cache, spec.clone(), spec_lock.clone());
+        let installer = Installer::new(cache, &spec, spec_lock);
 
-        let run_install = || -> Result<()> {
-            installer.install()?;
-            spec_lock.write().unwrap().save()?;
-            spec.write().unwrap().save()?;
+        if let Err(err) = {
+            let mut spec_lock = installer.install()?;
+            spec_lock.save()?;
+            spec.save()?;
             Ok(())
-        };
-
-        if let Err(err) = run_install() {
+        } {
             error!("install failed: {err}");
             return Err(err);
         };
@@ -108,19 +102,17 @@ impl Controller {
     }
 
     pub fn update(&self) -> Result<()> {
-        let (spec, spec_lock) = self.load_both()?;
+        let (mut spec, spec_lock) = self.load_both()?;
         let cache = Cache::new(&self.preset);
         let _cache_lock = cache.lock();
-        let installer = Installer::new(cache, spec.clone(), spec_lock.clone());
+        let installer = Installer::new(cache, &spec, spec_lock);
 
-        let run_update = || -> Result<()> {
-            installer.update()?;
-            spec_lock.write().unwrap().save()?;
-            spec.write().unwrap().save()?;
+        if let Err(err) = {
+            let mut spec_lock = installer.update()?;
+            spec_lock.save()?;
+            spec.save()?;
             Ok(())
-        };
-
-        if let Err(err) = run_update() {
+        } {
             error!("update failed: {err}");
             return Err(err);
         };
@@ -133,24 +125,20 @@ impl Controller {
         Cache::new(&self.preset).clear()
     }
 
-    fn load_both(&self) -> Result<(SharedSpec, SharedSpecLock)> {
-        let spec = Self::wrap(match Spec::load_from(self.preset.clone()) {
+    fn load_both(&self) -> Result<(Spec, SpecLock)> {
+        let spec = match Spec::load_from(self.preset.clone()) {
             Ok(value) => value,
             Err(err) => {
                 error!("{err}");
                 return Err(err);
             }
-        });
+        };
 
-        let spec_lock = Self::wrap(match SpecLock::load_from(self.preset.clone()) {
+        let spec_lock = match SpecLock::load_from(self.preset.clone()) {
             Ok(value) => value,
             Err(_) => SpecLock::with_preset(self.preset.clone()),
-        });
+        };
 
         Ok((spec, spec_lock))
-    }
-
-    fn wrap<T>(input: T) -> Arc<RwLock<T>> {
-        Arc::new(RwLock::new(input))
     }
 }

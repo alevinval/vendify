@@ -1,13 +1,9 @@
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
-use std::sync::RwLock;
 use std::thread;
-use std::thread::ScopedJoinHandle;
 
 use anyhow::format_err;
 use anyhow::Result;
-use log::error;
 
 use self::importer::Importer;
 use crate::cache::Cache;
@@ -20,16 +16,14 @@ mod collector;
 mod importer;
 mod selector;
 
-type ActionFn = fn(&Installer, &Dependency) -> Result<LockedDependency>;
-
-pub struct Installer {
+pub struct Installer<'spec> {
     cache: Cache,
-    spec: Arc<RwLock<Spec>>,
-    spec_lock: Arc<RwLock<SpecLock>>,
+    spec: &'spec Spec,
+    spec_lock: SpecLock,
 }
 
-impl Installer {
-    pub fn new(cache: Cache, spec: Arc<RwLock<Spec>>, spec_lock: Arc<RwLock<SpecLock>>) -> Self {
+impl<'spec> Installer<'spec> {
+    pub fn new(cache: Cache, spec: &'spec Spec, spec_lock: SpecLock) -> Self {
         Self {
             cache,
             spec,
@@ -37,54 +31,43 @@ impl Installer {
         }
     }
 
-    pub fn install(&self) -> Result<()> {
+    pub fn install(self) -> Result<SpecLock> {
         self.execute(Self::inner_install)
     }
 
-    pub fn update(&self) -> Result<()> {
+    pub fn update(self) -> Result<SpecLock> {
         self.execute(Self::inner_update)
     }
 
-    fn execute(&self, action: ActionFn) -> Result<()> {
+    fn execute<F>(mut self, callback: F) -> Result<SpecLock>
+    where
+        F: (Fn(&Installer<'spec>, &Dependency) -> Result<LockedDependency>) + Sync + Send,
+    {
         self.cache.initialize()?;
-        recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
+        recreate_vendor_path(&self.spec.vendor)?;
 
-        let deps = &self.spec.read().unwrap().deps;
-        thread::scope(|s| {
-            let mut handles: Vec<ScopedJoinHandle<Result<LockedDependency>>> = vec![];
-
-            for dep in deps.iter() {
-                handles.push(s.spawn(|| action(self, dep)));
-            }
-
-            for handle in handles {
-                if let Ok(result) = handle.join() {
-                    self.update_lock(result);
-                }
-            }
+        let updated_locks: Vec<_> = thread::scope(|s| {
+            self.spec
+                .deps
+                .iter()
+                .map(|dep| s.spawn(|| callback(&self, dep)))
+                .flat_map(|handle| handle.join().ok())
+                .flatten()
+                .collect()
         });
 
-        Ok(())
-    }
-
-    fn update_lock(&self, result: Result<LockedDependency>) {
-        match result {
-            Ok(dep) => {
-                self.spec_lock.write().unwrap().add_locked_dependency(dep);
-            }
-            Err(err) => {
-                error!("failed importing: {}", err);
-            }
+        for lock in updated_locks {
+            self.spec_lock.add_locked_dependency(lock);
         }
+
+        Ok(self.spec_lock)
     }
 
     fn inner_install(&self, dependency: &Dependency) -> Result<LockedDependency> {
         let _repository_lock = self.cache.lock_repository(dependency)?;
         let repository = self.cache.get_repository(dependency)?;
-        let spec = self.spec.read().unwrap();
-        let spec_lock = self.spec_lock.read().unwrap();
-        let dependency_lock = spec_lock.get_locked_dependency(&dependency.url);
-        let importer = Importer::new(&spec, dependency, dependency_lock, &repository);
+        let dependency_lock = self.spec_lock.get_locked_dependency(&dependency.url);
+        let importer = Importer::new(self.spec, dependency, dependency_lock, &repository);
 
         importer.install()
     }
@@ -92,8 +75,7 @@ impl Installer {
     fn inner_update(&self, dependency: &Dependency) -> Result<LockedDependency> {
         let _repository_lock = self.cache.lock_repository(dependency)?;
         let repository = self.cache.get_repository(dependency)?;
-        let spec = self.spec.read().unwrap();
-        let importer = Importer::new(&spec, dependency, None, &repository);
+        let importer = Importer::new(self.spec, dependency, None, &repository);
 
         importer.update()
     }
