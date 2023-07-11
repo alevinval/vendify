@@ -30,7 +30,7 @@ pub struct Spec {
     pub deps: Vec<Dependency>,
 
     #[serde(skip)]
-    preset: Arc<Preset>,
+    preset: Preset,
 }
 
 impl Spec {
@@ -56,7 +56,7 @@ impl Spec {
         }
     }
 
-    pub fn load_from(preset: Arc<Preset>) -> Result<Self> {
+    pub fn load_from(preset: &Preset) -> Result<Self> {
         let mut spec: Self = yaml::load(preset.spec())?;
         spec.apply_preset(preset);
         Ok(spec)
@@ -73,7 +73,7 @@ impl Spec {
             .find(|d| d.url.eq_ignore_ascii_case(&dep.url))
     }
 
-    fn apply_preset(&mut self, preset: Arc<Preset>) {
+    fn apply_preset(&mut self, preset: &Preset) {
         let crate_version = VERSION.to_string();
         if self.version < crate_version {
             self.version = crate_version;
@@ -87,7 +87,7 @@ impl Spec {
             dep.apply_preset(&preset);
         });
         self.preset_name = preset.name().into();
-        self.preset = preset;
+        self.preset = preset.clone();
     }
 
     fn lint(&mut self) {

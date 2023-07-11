@@ -15,14 +15,12 @@ use crate::filters::FilterKind;
 use crate::preset::Preset;
 
 pub struct Controller {
-    preset: Arc<Preset>,
+    preset: Preset,
 }
 
 impl Controller {
     pub fn new(preset: Preset) -> Self {
-        Self {
-            preset: Arc::new(preset),
-        }
+        Self { preset }
     }
 
     pub fn init(&self) {
