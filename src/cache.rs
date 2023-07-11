@@ -1,6 +1,5 @@
 use std::fs::create_dir_all;
 use std::fs::remove_dir_all;
-use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -14,39 +13,62 @@ use crate::preset::Preset;
 use crate::repository::Repository;
 
 pub struct Cache {
-    path: PathBuf,
+    root: PathBuf,
+    lock_file: PathBuf,
+    locks_dir: PathBuf,
+    repos_dir: PathBuf,
 }
 
 impl Cache {
-    const LOCKS_DIR: &str = "locks";
-    const REPOS_DIR: &str = "repos";
-
+    /// Creates a new [`Cache`] based on a [`Preset`].
     pub fn new(preset: &Preset) -> Self {
+        let root = PathBuf::from(preset.cache());
         Self {
-            path: preset.cache().into(),
+            lock_file: root.join(".LOCK"),
+            locks_dir: root.join("locks"),
+            repos_dir: root.join("repos"),
+            root,
         }
     }
 
-    pub fn ensure(&self) -> Result<()> {
-        create_dir_all(self.get_repos_path())
+    /// Initializes the cache folder, making sure it exists and contains the expected
+    /// directory structure.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if something fails along the way.
+    pub fn initialize(&self) -> Result<()> {
+        create_dir_all(&self.repos_dir)
             .map_err(|err| format_err!("cannot create repos directory: {err}"))?;
 
-        create_dir_all(self.get_locks_path())
+        create_dir_all(&self.locks_dir)
             .map_err(|err| format_err!("cannot create locks directory: {err}"))?;
 
         Ok(())
     }
 
+    /// Returns the lock of this [`Cache`]. It will log a warning message it takes
+    /// longer than expected to acquire, as this could indicate the user is trying to run
+    /// multiple vendoring processes at the same time, which is not supported, as the cache
+    /// is shared.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the lock cannot be acquired.
     pub fn lock(&self) -> Result<Lock> {
-        let path = self.path.join(".LOCK");
-        let mut lock = Lock::new(path).with_warn(
-            "Cannot acquire cache lock, are yoy running a different instance in parallel?",
+        let mut lock = Lock::new(&self.lock_file).with_warn(
+            "Cannot acquire cache lock, are you running a different instance in parallel?",
             Duration::from_secs(1),
         );
         lock.acquire()?;
         Ok(lock)
     }
 
+    /// Returns the lock for a [`Dependency`] cache folder
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the lock annot be acquired.
     pub fn lock_repository(&self, dep: &Dependency) -> Result<Lock> {
         let path = self.get_repository_lock_path(dep);
         let mut lock = Lock::new(path);
@@ -54,13 +76,23 @@ impl Cache {
         Ok(lock)
     }
 
-    pub fn clean(&self) -> Result<()> {
-        remove_dir_all(&self.path)
+    /// Removes the cache root directory.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the cache directory cannot be removed.
+    pub fn clear(&self) -> Result<()> {
+        remove_dir_all(&self.root)
             .map_err(|err| format_err!("cannot remove cache directory: {err}"))?;
 
         Ok(())
     }
 
+    /// Returns a [`Repository`] from the cache directory.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if cannot open repository.
     pub fn get_repository(&self, dep: &Dependency) -> Result<Repository> {
         let path = self.get_repository_path(dep);
         let repo = Repository::new(path);
@@ -69,24 +101,16 @@ impl Cache {
     }
 
     fn get_repository_path(&self, dep: &Dependency) -> PathBuf {
-        self.get_repos_path().join(Self::build_id(dep))
+        self.repos_dir.join(url_md5(dep))
     }
 
     fn get_repository_lock_path(&self, dep: &Dependency) -> PathBuf {
-        self.get_locks_path().join(Self::build_id(dep))
+        self.locks_dir.join(url_md5(dep))
     }
+}
 
-    fn get_repos_path(&self) -> PathBuf {
-        Path::new(&self.path).join(Self::REPOS_DIR)
-    }
-
-    fn get_locks_path(&self) -> PathBuf {
-        Path::new(&self.path).join(Self::LOCKS_DIR)
-    }
-
-    fn build_id(dep: &Dependency) -> String {
-        format!("{:x}", sha2::Sha256::digest(&dep.url))
-    }
+fn url_md5(dep: &Dependency) -> String {
+    format!("{:x}", sha2::Sha256::digest(&dep.url))
 }
 
 #[cfg(test)]
@@ -106,15 +130,15 @@ mod tests {
         let repos = root.join("repos");
         let locks = root.join("locks");
 
-        sut.clean();
+        sut.clear();
         assert!(!root.exists());
 
-        sut.ensure();
+        sut.initialize();
         assert!(root.exists());
         assert!(repos.exists());
         assert!(locks.exists());
 
-        sut.clean();
+        sut.clear();
         assert!(!root.exists());
     }
 

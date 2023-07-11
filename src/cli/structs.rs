@@ -47,4 +47,6 @@ pub enum Commands {
     /// Updates the vendored dependencies according to the desired refname
     /// in the spec file, updates the pins in the lock file.
     Update {},
+
+    ClearCache {},
 }

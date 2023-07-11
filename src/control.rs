@@ -129,6 +129,10 @@ impl Controller {
         Ok(())
     }
 
+    pub fn clear_cache(&self) -> Result<()> {
+        Cache::new(&self.preset).clear()
+    }
+
     fn load_both(&self) -> Result<(SharedSpec, SharedSpecLock)> {
         let spec = Self::wrap(match Spec::load_from(self.preset.clone()) {
             Ok(value) => value,

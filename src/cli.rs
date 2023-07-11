@@ -35,6 +35,7 @@ pub fn run() -> Result<()> {
         } => controller.add(&url, &refname, extensions, targets, ignores),
         Commands::Install {} => controller.install()?,
         Commands::Update {} => controller.update()?,
+        Commands::ClearCache {} => controller.clear_cache()?,
     };
     Ok(())
 }

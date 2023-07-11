@@ -46,7 +46,7 @@ impl Installer {
     }
 
     fn execute(&self, action: ActionFn) -> Result<()> {
-        self.cache.ensure()?;
+        self.cache.initialize()?;
         recreate_vendor_path(&self.spec.read().unwrap().vendor)?;
 
         let deps = &self.spec.read().unwrap().deps;
