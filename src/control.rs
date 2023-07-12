@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use log::error;
-use log::info;
-use log::warn;
 
 use super::deps::Dependency;
 use super::installer::Installer;
@@ -23,21 +20,21 @@ impl Controller {
     }
 
     pub fn init(&self) {
-        info!("initializing vendor in current directory");
+        log::info!("initializing vendor in current directory");
 
         let spec_path: &PathBuf = &self.preset.spec().into();
         if spec_path.exists() {
-            warn!("{} already exists", spec_path.display());
+            log::warn!("{} already exists", spec_path.display());
             return;
         }
 
         let mut spec = Spec::with_preset(&self.preset);
         if let Err(err) = spec.save() {
-            error!("{err}");
+            log::error!("{err}");
             return;
         }
 
-        info!("{} has been created", spec_path.display());
+        log::info!("{} has been created", spec_path.display());
     }
 
     pub fn add(
@@ -51,7 +48,7 @@ impl Controller {
         let mut spec = match Spec::load_from(&self.preset) {
             Ok(spec) => spec,
             Err(err) => {
-                error!("{err}");
+                log::error!("{err}");
                 return;
             }
         };
@@ -70,10 +67,10 @@ impl Controller {
 
         match spec.save() {
             Ok(_) => {
-                info!("added dependency {url}@{refname}");
+                log::info!("added dependency {url}@{refname}");
             }
             Err(err) => {
-                error!("cannot add dependency: {err}");
+                log::error!("cannot add dependency: {err}");
             }
         }
     }
@@ -90,11 +87,11 @@ impl Controller {
             spec.save()?;
             Ok(())
         } {
-            error!("install failed: {err}");
+            log::error!("install failed: {err}");
             return Err(err);
         };
 
-        info!("install success ✅");
+        log::info!("install success ✅");
         Ok(())
     }
 
@@ -110,11 +107,11 @@ impl Controller {
             spec.save()?;
             Ok(())
         } {
-            error!("update failed: {err}");
+            log::error!("update failed: {err}");
             return Err(err);
         };
 
-        info!("update success ✅");
+        log::info!("update success ✅");
         Ok(())
     }
 
@@ -126,7 +123,7 @@ impl Controller {
         let spec = match Spec::load_from(&self.preset) {
             Ok(value) => value,
             Err(err) => {
-                error!("{err}");
+                log::error!("{err}");
                 return Err(err);
             }
         };

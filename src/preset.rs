@@ -1,8 +1,6 @@
 use std::env::temp_dir;
 use std::fmt;
 
-use log::warn;
-
 use crate::deps::Dependency;
 use crate::filters::Filters;
 
@@ -194,7 +192,7 @@ impl Builder {
         home::home_dir()
             .map_or_else(
                 || {
-                    warn!("Cannot find user home directory, using tempdir as home");
+                    log::warn!("Cannot find user home directory, using tempdir as home");
                     temp_dir()
                 },
                 |home| home,

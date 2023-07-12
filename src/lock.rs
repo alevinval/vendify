@@ -7,13 +7,11 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::Result;
-use log::error;
 
 pub struct Lock {
     path: PathBuf,
     file: Option<File>,
-    warn: Option<String>,
-    after: Option<Duration>,
+    warn: Option<(String, Duration)>,
 }
 
 impl Lock {
@@ -22,13 +20,11 @@ impl Lock {
             path: path.into(),
             file: None,
             warn: None,
-            after: None,
         }
     }
 
     pub fn with_warn(mut self, warn: impl Into<String>, after: Duration) -> Self {
-        self.warn = Some(warn.into());
-        self.after = Some(after);
+        self.warn = Some((warn.into(), after));
         self
     }
 
@@ -43,11 +39,10 @@ impl Lock {
                 let result = unix::exclusive_lock(file);
                 sender.send(result)
             });
-            if let Some(after) = self.after {
-                if receiver.recv_timeout(after).is_ok() {
-                    return Ok(());
+            if let Some((warn, after)) = &self.warn {
+                if receiver.recv_timeout(*after).is_err() {
+                    log::error!("{}", warn);
                 }
-                error!("{}", self.warn.as_ref().unwrap());
             }
             match receiver.recv() {
                 Ok(result) => result,

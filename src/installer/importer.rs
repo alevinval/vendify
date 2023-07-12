@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use log::debug;
-use log::info;
 
 use super::collector::Collector;
 use super::selector::Selector;
@@ -42,7 +40,7 @@ impl<'a> Importer<'a> {
     pub fn install(&self) -> Result<LockedDependency> {
         let refname = self.get_locked_refname();
 
-        info!("installing {}@{}", self.dependency.url, refname);
+        log::info!("installing {}@{}", self.dependency.url, refname);
         self.repository.fetch(&self.dependency.refname)?;
         self.repository.checkout(refname)?;
         self.import()
@@ -54,7 +52,7 @@ impl<'a> Importer<'a> {
     pub fn update(&self) -> Result<LockedDependency> {
         let refname = self.dependency.refname.as_str();
 
-        info!("updating {}@{}", self.dependency.url, refname);
+        log::info!("updating {}@{}", self.dependency.url, refname);
         self.repository.fetch(refname)?;
         self.repository.reset(refname)?;
         self.import()
@@ -63,13 +61,13 @@ impl<'a> Importer<'a> {
     fn import(&self) -> Result<LockedDependency> {
         self.copy_files()?;
         let locked = self.get_locked_dependency()?;
-        info!("\t🔒 {}", locked.refname);
+        log::info!("\t🔒 {}", locked.refname);
         Ok(locked)
     }
 
     fn copy_files(&self) -> Result<()> {
         for collected in self.collector.collect(&self.repository.path()) {
-            debug!(
+            log::debug!(
                 "\t.../{} -> {}",
                 collected.src_rel.display(),
                 self.to.join(&collected.src_rel).display()

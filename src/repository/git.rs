@@ -12,8 +12,6 @@ use git2::Oid;
 use git2::RemoteCallbacks;
 use git2::Repository;
 use git2_credentials::CredentialHandler;
-use log::error;
-use log::info;
 
 pub struct Git;
 
@@ -52,7 +50,7 @@ impl Git {
     }
 
     pub fn clone(url: &str, refname: &str, dst: &Path) -> Result<Repository> {
-        info!("cloning {}...", url);
+        log::info!("cloning {}...", url);
 
         let fetch_options = Self::get_fetch_options()?;
         match RepoBuilder::new()
@@ -62,7 +60,7 @@ impl Git {
         {
             Ok(it) => Ok(it),
             Err(err) => {
-                error!("cannot clone {}: {}", url, err);
+                log::error!("cannot clone {}: {}", url, err);
                 Err(err.into())
             }
         }
@@ -111,7 +109,7 @@ impl Git {
         let config = match Config::open_default() {
             Ok(it) => it,
             Err(err) => {
-                error!("cannot open git configuration: {err}");
+                log::error!("cannot open git configuration: {err}");
                 return Err(err.into());
             }
         };
